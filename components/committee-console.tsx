@@ -22,13 +22,21 @@ type SessionMessage = {
   isFinal?: boolean;
 };
 
-const roleMeta: Record<string, { initials: string }> = {
-  chairman: { initials: "CI" },
-  fundamental: { initials: "FA" },
-  market: { initials: "MA" },
-  risk: { initials: "RO" },
-  portfolio: { initials: "PS" }
+const roleMeta: Record<string, { initials: string; pitch: number; rate: number; voiceIndex: number }> = {
+  chairman: { initials: "CI", pitch: 0.88, rate: 0.92, voiceIndex: 0 },
+  fundamental: { initials: "FA", pitch: 1.05, rate: 0.96, voiceIndex: 1 },
+  market: { initials: "MA", pitch: 1.14, rate: 1.02, voiceIndex: 2 },
+  risk: { initials: "RO", pitch: 0.82, rate: 0.9, voiceIndex: 3 },
+  portfolio: { initials: "PS", pitch: 0.98, rate: 0.95, voiceIndex: 4 }
 };
+
+function roleKeyFromMessage(message: SessionMessage) {
+  if (message.id.includes("fund")) return "fundamental";
+  if (message.id.includes("market")) return "market";
+  if (message.id.includes("risk")) return "risk";
+  if (message.id.includes("portfolio")) return "portfolio";
+  return "chairman";
+}
 
 export function CommitteeConsole() {
   const [form, setForm] = useState(initial);
@@ -37,6 +45,8 @@ export function CommitteeConsole() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeRole, setActiveRole] = useState("");
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceSupported, setVoiceSupported] = useState(true);
   const roomBodyRef = useRef<HTMLDivElement>(null);
 
   const progress = useMemo(() => {
@@ -46,11 +56,45 @@ export function CommitteeConsole() {
   }, [activeRole, loading, result]);
 
   useEffect(() => {
+    setVoiceSupported(typeof window !== "undefined" && "speechSynthesis" in window);
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     roomBodyRef.current?.scrollTo({ top: roomBodyRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
   function delay(ms: number) {
     return new Promise(resolve => window.setTimeout(resolve, ms));
+  }
+
+  function speak(message: SessionMessage) {
+    if (!voiceEnabled || !voiceSupported || !("speechSynthesis" in window)) {
+      return delay(1100);
+    }
+
+    return new Promise<void>(resolve => {
+      const synth = window.speechSynthesis;
+      const utterance = new SpeechSynthesisUtterance(
+        `${message.role}. ${message.body}${message.vote ? `. ${message.isFinal ? "Final recommendation" : "Vote"}: ${message.vote}.` : ""}`
+      );
+      const key = roleKeyFromMessage(message);
+      const meta = roleMeta[key];
+      const voices = synth.getVoices().filter(voice => voice.lang.toLowerCase().startsWith("en"));
+      utterance.voice = voices[meta.voiceIndex % Math.max(voices.length, 1)] ?? null;
+      utterance.lang = "en-US";
+      utterance.pitch = meta.pitch;
+      utterance.rate = meta.rate;
+      utterance.volume = 1;
+      utterance.onend = () => resolve();
+      utterance.onerror = () => resolve();
+      synth.cancel();
+      synth.speak(utterance);
+    });
   }
 
   async function revealSession(recommendation: Recommendation) {
@@ -59,12 +103,12 @@ export function CommitteeConsole() {
       role: "Chairman / CIO",
       initials: roleMeta.chairman.initials,
       status: "speaking",
-      body: `Committee session opened. Our client is considering a $${form.amount.toLocaleString()} investment in ${form.ticker}. The portfolio is valued at $${form.portfolioValue.toLocaleString()}, current sector exposure is ${form.currentSectorExposure}%, risk tolerance is ${form.riskTolerance}, and the investment horizon is ${form.horizonYears} years. Committee members, begin your review.`
+      body: `Committee session opened. Our client is considering a $${form.amount.toLocaleString()} investment in ${form.ticker}. The portfolio is valued at $${form.portfolioValue.toLocaleString()}, current sector exposure is ${form.currentSectorExposure} percent, risk tolerance is ${form.riskTolerance}, and the investment horizon is ${form.horizonYears} years. Committee members, begin your review.`
     };
 
     setActiveRole(intro.role);
     setMessages([intro]);
-    await delay(1100);
+    await speak(intro);
     setMessages(current => current.map(item => ({ ...item, status: "complete" })));
 
     for (const opinion of recommendation.opinions) {
@@ -79,7 +123,7 @@ export function CommitteeConsole() {
       };
       setActiveRole(message.role);
       setMessages(current => [...current, message]);
-      await delay(1050);
+      await speak(message);
       setMessages(current => current.map(item => item.id === message.id ? { ...item, status: "complete" } : item));
     }
 
@@ -92,15 +136,20 @@ export function CommitteeConsole() {
       vote: recommendation.decision.replace("_", " ").toUpperCase(),
       isFinal: true
     };
+    setResult(recommendation);
     setActiveRole(finalMessage.role);
     setMessages(current => [...current, finalMessage]);
-    await delay(900);
+    await speak(finalMessage);
     setMessages(current => current.map(item => item.id === finalMessage.id ? { ...item, status: "complete" } : item));
     setActiveRole("");
   }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.getVoices();
+    }
     setLoading(true);
     setResult(null);
     setMessages([]);
@@ -114,12 +163,18 @@ export function CommitteeConsole() {
       if (!response.ok) throw new Error("Committee request failed");
       const recommendation = await response.json() as Recommendation;
       await revealSession(recommendation);
-      setResult(recommendation);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
       setLoading(false);
     }
+  }
+
+  function toggleVoice() {
+    if (voiceEnabled && typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setVoiceEnabled(current => !current);
   }
 
   return (
@@ -139,10 +194,18 @@ export function CommitteeConsole() {
       </form>
 
       <section className="roomPanel">
-        <div className="roomHeader"><span className="liveDot">COMMITTEE ROOM</span><span className={loading ? "sessionStatus live" : "sessionStatus"}>{progress}</span></div>
+        <div className="roomHeader">
+          <span className="liveDot">COMMITTEE ROOM</span>
+          <div className="roomControls">
+            <button type="button" className={`voiceToggle ${voiceEnabled ? "enabled" : ""}`} onClick={toggleVoice} disabled={!voiceSupported} aria-label="Toggle committee voice">
+              <span>{voiceEnabled ? "🔊" : "🔇"}</span>{voiceEnabled ? "Voice on" : "Voice off"}
+            </button>
+            <span className={loading ? "sessionStatus live" : "sessionStatus"}>{progress}</span>
+          </div>
+        </div>
         <div className="roomBody" ref={roomBodyRef}>
           {!messages.length ? (
-            <div className="emptyState"><div className="seal">AIC</div><h2>The committee is ready.</h2><p>Enter a proposed stock purchase to open a structured committee session.</p></div>
+            <div className="emptyState"><div className="seal">AIC</div><h2>The committee is ready.</h2><p>Enter a proposed stock purchase to open a structured committee session.</p><p className="voiceHint">Voice narration is {voiceEnabled ? "enabled" : "disabled"}.</p></div>
           ) : (
             <div className="sessionTimeline">
               {messages.map((message, index) => (
