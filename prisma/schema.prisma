@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  createdAt  DateTime @default(now())
+  profile    FinancialProfile?
+  portfolios Portfolio[]
+  sessions   CommitteeSession[]
+}
+
+model FinancialProfile {
+  id                         String @id @default(cuid())
+  userId                     String @unique
+  riskTolerance              String
+  investmentHorizonYears     Int
+  approximatePortfolioValue  Float
+  maximumAcceptableLossPct   Float
+  user                       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Portfolio {
+  id        String @id @default(cuid())
+  userId    String
+  name      String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  positions PortfolioPosition[]
+}
+
+model PortfolioPosition {
+  id          String @id @default(cuid())
+  portfolioId String
+  ticker      String
+  quantity    Float
+  costBasis   Float?
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+}
+
+model CommitteeSession {
+  id             String   @id @default(cuid())
+  userId         String
+  ticker         String
+  proposedAmount Float
+  status         String   @default("completed")
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opinions       CommitteeOpinion[]
+  recommendation Recommendation?
+}
+
+model CommitteeOpinion {
+  id         String @id @default(cuid())
+  sessionId  String
+  memberId   String
+  vote       String
+  confidence Float
+  thesis     String
+  risksJson  String
+  session    CommitteeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model Recommendation {
+  id                String @id @default(cuid())
+  sessionId         String @unique
+  decision          String
+  confidence        Float
+  proposedAmount    Float
+  allocationPercent Float
+  summary           String
+  reasonsJson       String
+  risksJson         String
+  generatedAt       DateTime @default(now())
+  session           CommitteeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
