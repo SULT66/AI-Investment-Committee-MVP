@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { Recommendation } from "@/lib/types";
+import { getUI, languages, type Language } from "@/lib/i18n";
 
 const initial = {
   ticker: "NVDA",
@@ -9,7 +10,8 @@ const initial = {
   portfolioValue: 100000,
   currentSectorExposure: 28,
   riskTolerance: "moderate" as const,
-  horizonYears: 5
+  horizonYears: 5,
+  language: "en" as Language
 };
 
 type SessionMessage = {
@@ -24,13 +26,44 @@ type SessionMessage = {
 
 type MemberKey = "chairman" | "fundamental" | "market" | "risk" | "portfolio";
 
-const members: Array<{ key: MemberKey; role: string; initials: string; specialty: string }> = [
-  { key: "chairman", role: "Chairman / CIO", initials: "CI", specialty: "Final judgment" },
-  { key: "fundamental", role: "Fundamental Analyst", initials: "FA", specialty: "Business quality" },
-  { key: "market", role: "Market Analyst", initials: "MA", specialty: "Price and momentum" },
-  { key: "risk", role: "Risk Officer", initials: "RO", specialty: "Downside control" },
-  { key: "portfolio", role: "Portfolio Strategist", initials: "PS", specialty: "Portfolio fit" }
-];
+const memberNames: Record<Language, [string, string, string, string, string]> = {
+  en: ["Chairman / CIO", "Fundamental Analyst", "Market Analyst", "Risk Officer", "Portfolio Strategist"],
+  ru: ["Председатель / CIO", "Фундаментальный аналитик", "Рыночный аналитик", "Риск-офицер", "Портфельный стратег"],
+  es: ["Presidente / CIO", "Analista fundamental", "Analista de mercado", "Responsable de riesgo", "Estratega de cartera"],
+  fr: ["Président / CIO", "Analyste fondamental", "Analyste de marché", "Responsable des risques", "Stratège de portefeuille"],
+  de: ["Vorsitzender / CIO", "Fundamentalanalyst", "Marktanalyst", "Risikobeauftragter", "Portfoliostratege"],
+  it: ["Presidente / CIO", "Analista fondamentale", "Analista di mercato", "Responsabile del rischio", "Stratega di portafoglio"],
+  pt: ["Presidente / CIO", "Analista fundamentalista", "Analista de mercado", "Diretor de risco", "Estrategista de portfólio"],
+  ar: ["رئيس اللجنة / CIO", "المحلل الأساسي", "محلل السوق", "مسؤول المخاطر", "استراتيجي المحفظة"],
+  tr: ["Başkan / CIO", "Temel Analist", "Piyasa Analisti", "Risk Yöneticisi", "Portföy Stratejisti"],
+  az: ["Sədr / CIO", "Fundamental analitik", "Bazar analitiki", "Risk üzrə mütəxəssis", "Portfel strateqi"]
+};
+
+const openingText: Record<Language, (amount: string, ticker: string, portfolio: string) => string> = {
+  en: (a,t,p) => `Good afternoon. Our client is considering a $${a} investment in ${t}. The committee will now assess the opportunity in the context of a $${p} portfolio.`,
+  ru: (a,t,p) => `Добрый день. Наш клиент рассматривает инвестицию $${a} в ${t}. Комитет оценит эту возможность с учетом портфеля стоимостью $${p}.`,
+  es: (a,t,p) => `Buenas tardes. Nuestro cliente considera una inversión de $${a} en ${t}. El comité evaluará la oportunidad en el contexto de una cartera de $${p}.`,
+  fr: (a,t,p) => `Bonjour. Notre client envisage un investissement de $${a} dans ${t}. Le comité va évaluer cette opportunité dans le contexte d'un portefeuille de $${p}.`,
+  de: (a,t,p) => `Guten Tag. Unser Kunde erwägt eine Investition von $${a} in ${t}. Das Komitee bewertet die Gelegenheit im Rahmen eines Portfolios von $${p}.`,
+  it: (a,t,p) => `Buongiorno. Il nostro cliente sta valutando un investimento di $${a} in ${t}. Il comitato valuterà l'opportunità nel contesto di un portafoglio di $${p}.`,
+  pt: (a,t,p) => `Boa tarde. Nosso cliente considera um investimento de $${a} em ${t}. O comitê avaliará a oportunidade no contexto de um portfólio de $${p}.`,
+  ar: (a,t,p) => `مساء الخير. يدرس عميلنا استثمار مبلغ $${a} في ${t}. وستقيّم اللجنة الفرصة ضمن محفظة قيمتها $${p}.`,
+  tr: (a,t,p) => `İyi günler. Müşterimiz ${t} için $${a} tutarında yatırım düşünüyor. Komite fırsatı $${p} değerindeki portföy bağlamında değerlendirecek.`,
+  az: (a,t,p) => `Salam. Müştərimiz ${t} səhminə $${a} investisiya etməyi nəzərdən keçirir. Komitə bu imkanı $${p} dəyərində portfel çərçivəsində qiymətləndirəcək.`
+};
+
+const voteText: Record<Language, Record<string, string>> = {
+  en:{buy:"BUY",buy_partial:"BUY PARTIALLY",hold:"HOLD",avoid:"AVOID",reduce:"REDUCE"},
+  ru:{buy:"КУПИТЬ",buy_partial:"КУПИТЬ ЧАСТИЧНО",hold:"УДЕРЖИВАТЬ",avoid:"ИЗБЕГАТЬ",reduce:"СОКРАТИТЬ"},
+  es:{buy:"COMPRAR",buy_partial:"COMPRAR PARCIALMENTE",hold:"MANTENER",avoid:"EVITAR",reduce:"REDUCIR"},
+  fr:{buy:"ACHETER",buy_partial:"ACHETER PARTIELLEMENT",hold:"CONSERVER",avoid:"ÉVITER",reduce:"RÉDUIRE"},
+  de:{buy:"KAUFEN",buy_partial:"TEILWEISE KAUFEN",hold:"HALTEN",avoid:"VERMEIDEN",reduce:"REDUZIEREN"},
+  it:{buy:"ACQUISTARE",buy_partial:"ACQUISTARE PARZIALMENTE",hold:"MANTENERE",avoid:"EVITARE",reduce:"RIDURRE"},
+  pt:{buy:"COMPRAR",buy_partial:"COMPRAR PARCIALMENTE",hold:"MANTER",avoid:"EVITAR",reduce:"REDUZIR"},
+  ar:{buy:"شراء",buy_partial:"شراء جزئي",hold:"احتفاظ",avoid:"تجنب",reduce:"تقليل"},
+  tr:{buy:"SATIN AL",buy_partial:"KISMEN SATIN AL",hold:"TUT",avoid:"KAÇIN",reduce:"AZALT"},
+  az:{buy:"AL",buy_partial:"QİSMƏN AL",hold:"SAXLA",avoid:"UZAQ DUR",reduce:"AZALT"}
+};
 
 function memberKeyFromId(id: string): MemberKey {
   if (id.includes("fund")) return "fundamental";
@@ -49,34 +82,36 @@ export function CommitteeConsole() {
   const [activeMember, setActiveMember] = useState<MemberKey | "">("");
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const roomBodyRef = useRef<HTMLDivElement>(null);
+  const t = getUI(form.language);
+  const names = memberNames[form.language];
+  const members: Array<{ key: MemberKey; role: string; initials: string }> = [
+    { key: "chairman", role: names[0], initials: "CI" },
+    { key: "fundamental", role: names[1], initials: "FA" },
+    { key: "market", role: names[2], initials: "MA" },
+    { key: "risk", role: names[3], initials: "RO" },
+    { key: "portfolio", role: names[4], initials: "PS" }
+  ];
 
   const progress = useMemo(() => {
-    if (!loading && !result) return "Awaiting proposal";
-    if (loading) return activeMember ? "Committee in session" : "Opening session";
-    return "Decision ready";
-  }, [activeMember, loading, result]);
+    if (!loading && !result) return t.awaiting;
+    if (loading) return activeMember ? t.session : t.opening;
+    return t.ready;
+  }, [activeMember, loading, result, t]);
 
   const activeMessage = messages.find(message => message.status === "speaking") ?? messages.at(-1);
 
-  useEffect(() => {
-    return () => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
-    };
-  }, []);
+  useEffect(() => () => { if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel(); }, []);
+  useEffect(() => { roomBodyRef.current?.scrollTo({ top: roomBodyRef.current.scrollHeight, behavior: "smooth" }); }, [messages]);
 
-  useEffect(() => {
-    roomBodyRef.current?.scrollTo({ top: roomBodyRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
-
-  function delay(ms: number) {
-    return new Promise(resolve => window.setTimeout(resolve, ms));
-  }
+  function delay(ms: number) { return new Promise(resolve => window.setTimeout(resolve, ms)); }
 
   function speak(message: SessionMessage) {
     if (!voiceEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return delay(1050);
     return new Promise<void>(resolve => {
       const utterance = new SpeechSynthesisUtterance(message.body);
-      utterance.lang = "en-US";
+      utterance.lang = languages[form.language].locale;
+      const available = window.speechSynthesis.getVoices();
+      utterance.voice = available.find(v => v.lang.toLowerCase().startsWith(form.language)) ?? null;
       utterance.rate = 0.94;
       utterance.pitch = 0.96;
       utterance.onend = () => resolve();
@@ -95,127 +130,59 @@ export function CommitteeConsole() {
 
   async function revealSession(recommendation: Recommendation) {
     await showMessage({
-      id: "chairman-open",
-      role: "Chairman / CIO",
-      initials: "CI",
-      status: "speaking",
-      body: `Good afternoon. Our client is considering a $${form.amount.toLocaleString()} investment in ${form.ticker}. The committee will now assess the opportunity in the context of a $${form.portfolioValue.toLocaleString()} portfolio.`
+      id: "chairman-open", role: names[0], initials: "CI", status: "speaking",
+      body: openingText[form.language](form.amount.toLocaleString(), form.ticker, form.portfolioValue.toLocaleString())
     });
-
     for (const opinion of recommendation.opinions) {
       const key = memberKeyFromId(opinion.memberId);
       const member = members.find(item => item.key === key)!;
-      await showMessage({
-        id: opinion.memberId,
-        role: opinion.title,
-        initials: member.initials,
-        status: "speaking",
-        body: opinion.thesis,
-        vote: opinion.vote.replace("_", " ").toUpperCase()
-      });
+      await showMessage({ id: opinion.memberId, role: opinion.title, initials: member.initials, status: "speaking", body: opinion.thesis, vote: voteText[form.language][opinion.vote] });
     }
-
     setResult(recommendation);
-    await showMessage({
-      id: "chairman-final",
-      role: "Chairman / CIO",
-      initials: "CI",
-      status: "speaking",
-      body: recommendation.summary,
-      vote: recommendation.decision.replace("_", " ").toUpperCase(),
-      isFinal: true
-    });
+    await showMessage({ id: "chairman-final", role: names[0], initials: "CI", status: "speaking", body: recommendation.summary, vote: voteText[form.language][recommendation.decision], isFinal: true });
     setActiveMember("");
   }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
-    setLoading(true);
-    setResult(null);
-    setMessages([]);
-    setActiveMember("");
-    setError("");
+    setLoading(true); setResult(null); setMessages([]); setActiveMember(""); setError("");
     try {
-      const response = await fetch("/api/committee/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
-      });
+      const response = await fetch("/api/committee/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       if (!response.ok) throw new Error("Committee request failed");
       await revealSession(await response.json() as Recommendation);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unexpected error");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : "Unexpected error"); }
+    finally { setLoading(false); }
   }
 
   function resetSession() {
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
-    setResult(null);
-    setMessages([]);
-    setActiveMember("");
-    roomBodyRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    setResult(null); setMessages([]); setActiveMember(""); roomBodyRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return (
-    <div className="consoleGrid cinematicConsole">
+    <div className="consoleGrid cinematicConsole" dir={form.language === "ar" ? "rtl" : "ltr"}>
       <form className="inputPanel proposalPanel" onSubmit={submit}>
-        <p className="eyebrow">CLIENT PROPOSAL</p>
-        <h1>Open a committee session</h1>
-        <p className="panelIntro">The committee evaluates the investment against the client&apos;s portfolio, risk level and time horizon.</p>
-        <label>Ticker<input value={form.ticker} onChange={e => setForm({ ...form, ticker: e.target.value.toUpperCase() })} /></label>
-        <label>Proposed amount ($)<input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} /></label>
-        <label>Portfolio value ($)<input type="number" value={form.portfolioValue} onChange={e => setForm({ ...form, portfolioValue: Number(e.target.value) })} /></label>
-        <div className="fieldPair">
-          <label>Sector exposure (%)<input type="number" value={form.currentSectorExposure} onChange={e => setForm({ ...form, currentSectorExposure: Number(e.target.value) })} /></label>
-          <label>Horizon (years)<input type="number" value={form.horizonYears} onChange={e => setForm({ ...form, horizonYears: Number(e.target.value) })} /></label>
-        </div>
-        <label>Risk tolerance<select value={form.riskTolerance} onChange={e => setForm({ ...form, riskTolerance: e.target.value as typeof form.riskTolerance })}><option value="low">Low</option><option value="moderate">Moderate</option><option value="high">High</option></select></label>
-        <button className="primaryButton sessionButton" disabled={loading}>{loading ? "Committee in session…" : "Enter committee room"}</button>
-        {error && <p className="error">{error}</p>}
-        <small>Demo analysis only. No trades are executed.</small>
+        <div className="languageRow"><p className="eyebrow">{t.proposal}</p><select aria-label="Language" value={form.language} onChange={e => { const language = e.target.value as Language; setForm({ ...form, language }); setMessages([]); setResult(null); }} disabled={loading}>{Object.entries(languages).map(([code, item]) => <option key={code} value={code}>{item.label}</option>)}</select></div>
+        <h1>{t.open}</h1>
+        <p className="panelIntro">{t.intro}</p>
+        <label>{t.ticker}<input value={form.ticker} onChange={e => setForm({ ...form, ticker: e.target.value.toUpperCase() })} /></label>
+        <label>{t.amount}<input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} /></label>
+        <label>{t.portfolio}<input type="number" value={form.portfolioValue} onChange={e => setForm({ ...form, portfolioValue: Number(e.target.value) })} /></label>
+        <div className="fieldPair"><label>{t.sector}<input type="number" value={form.currentSectorExposure} onChange={e => setForm({ ...form, currentSectorExposure: Number(e.target.value) })} /></label><label>{t.horizon}<input type="number" value={form.horizonYears} onChange={e => setForm({ ...form, horizonYears: Number(e.target.value) })} /></label></div>
+        <label>{t.risk}<select value={form.riskTolerance} onChange={e => setForm({ ...form, riskTolerance: e.target.value as typeof form.riskTolerance })}><option value="low">{t.low}</option><option value="moderate">{t.moderate}</option><option value="high">{t.high}</option></select></label>
+        <button className="primaryButton sessionButton" disabled={loading}>{loading ? t.live : t.enter}</button>
+        {error && <p className="error">{error}</p>}<small>{t.demo}</small>
       </form>
 
       <section className="roomPanel cinematicRoom">
-        <header className="roomHeader">
-          <div><span className="liveDot">PRIVATE COMMITTEE ROOM</span><strong className="roomTicker">{form.ticker}</strong></div>
-          <div className="roomControls">
-            <button type="button" className={`voiceToggle ${voiceEnabled ? "enabled" : ""}`} onClick={() => setVoiceEnabled(value => !value)}><span>{voiceEnabled ? "◉" : "○"}</span> Preview voice</button>
-            <span className={loading ? "sessionStatus live" : "sessionStatus"}>{progress}</span>
-          </div>
-        </header>
-
-        <div className="participantStrip">
-          {members.map(member => {
-            const completed = messages.some(message => memberKeyFromId(message.id) === member.key && message.status === "complete");
-            const status = activeMember === member.key ? "Speaking" : completed ? "Complete" : loading ? "Analyzing" : "Waiting";
-            return <div className={`participant ${activeMember === member.key ? "active" : ""}`} key={member.key}><div className="participantAvatar">{member.initials}</div><div><strong>{member.role}</strong><span>{status}</span></div></div>;
-          })}
-        </div>
-
+        <header className="roomHeader"><div><span className="liveDot">{t.room}</span><strong className="roomTicker">{form.ticker}</strong></div><div className="roomControls"><button type="button" className={`voiceToggle ${voiceEnabled ? "enabled" : ""}`} onClick={() => setVoiceEnabled(value => !value)}><span>{voiceEnabled ? "◉" : "○"}</span> {t.voice}</button><span className={loading ? "sessionStatus live" : "sessionStatus"}>{progress}</span></div></header>
+        <div className="participantStrip">{members.map(member => { const completed = messages.some(message => memberKeyFromId(message.id) === member.key && message.status === "complete"); const status = activeMember === member.key ? t.speaking : completed ? t.complete : loading ? t.analyzing : t.waiting; return <div className={`participant ${activeMember === member.key ? "active" : ""}`} key={member.key}><div className="participantAvatar">{member.initials}</div><div><strong>{member.role}</strong><span>{status}</span></div></div>; })}</div>
         <div className="roomBody" ref={roomBodyRef}>
-          <div className={`boardroomStage ${loading ? "sessionLive" : ""}`}>
-            <div className="ambientGlow" />
-            <div className="marketWall">
-              <div className="wallTop"><span>SESSION BRIEF</span><span>{form.ticker} · US EQUITY</span></div>
-              {!messages.length ? <div className="readyScreen"><div className="seal">AIC</div><h2>The committee is ready</h2><p>Submit the proposal to begin a structured investment debate.</p></div> : activeMessage?.isFinal && result ? <div className="decisionScreen"><span>FINAL RECOMMENDATION</span><h2>{activeMessage.vote}</h2><div className="decisionMetrics"><div><small>Confidence</small><strong>{Math.round(result.confidence * 100)}%</strong></div><div><small>Suggested amount</small><strong>${result.proposedInvestmentAmount.toLocaleString()}</strong></div><div><small>Allocation</small><strong>{result.proposedPortfolioAllocationPercent}%</strong></div></div></div> : <div className="speakerScreen"><span>{activeMessage?.role ?? "Committee"}</span><h2>{activeMessage?.vote ?? "Analysis in progress"}</h2><p>{activeMessage?.body}</p></div>}
-            </div>
-
-            <div className="tableScene">
-              {members.map((member, index) => <div className={`seat seat${index + 1} ${activeMember === member.key ? "speaking" : ""}`} key={member.key}><div className="seatAvatar">{member.initials}</div><span>{member.role.replace(" / CIO", "")}</span></div>)}
-              <div className="conferenceTable"><div className="tableCore"><span>{loading ? "LIVE SESSION" : result ? "DECISION COMPLETE" : "AWAITING CLIENT"}</span><strong>{form.ticker}</strong><small>${form.amount.toLocaleString()} proposal</small></div></div>
-            </div>
+          <div className={`boardroomStage ${loading ? "sessionLive" : ""}`}><div className="ambientGlow" /><div className="marketWall"><div className="wallTop"><span>{t.brief}</span><span>{form.ticker} · {t.equity}</span></div>{!messages.length ? <div className="readyScreen"><div className="seal">AIC</div><h2>{t.committeeReady}</h2><p>{t.submit}</p></div> : activeMessage?.isFinal && result ? <div className="decisionScreen"><span>{t.final}</span><h2>{activeMessage.vote}</h2><div className="decisionMetrics"><div><small>{t.confidence}</small><strong>{Math.round(result.confidence * 100)}%</strong></div><div><small>{t.suggested}</small><strong>${result.proposedInvestmentAmount.toLocaleString()}</strong></div><div><small>{t.allocation}</small><strong>{result.proposedPortfolioAllocationPercent}%</strong></div></div></div> : <div className="speakerScreen"><span>{activeMessage?.role ?? "Committee"}</span><h2>{activeMessage?.vote ?? t.progress}</h2><p>{activeMessage?.body}</p></div>}</div>
+            <div className="tableScene">{members.map((member,index) => <div className={`seat seat${index+1} ${activeMember===member.key ? "speaking":""}`} key={member.key}><div className="seatAvatar">{member.initials}</div><span>{member.role.replace(" / CIO","")}</span></div>)}<div className="conferenceTable"><div className="tableCore"><span>{loading ? t.session : result ? t.ready : t.awaiting}</span><strong>{form.ticker}</strong><small>${form.amount.toLocaleString()}</small></div></div></div>
           </div>
-
-          {!!messages.length && <div className="sessionTranscript">
-            <div className="transcriptHeading"><div><span>MEETING RECORD</span><h3>Committee discussion</h3></div><button type="button" onClick={() => roomBodyRef.current?.scrollTo({ top: 0, behavior: "smooth" })}>Back to room</button></div>
-            {messages.map(message => <article className={`transcriptMessage ${message.isFinal ? "final" : ""}`} key={message.id}><div className="transcriptAvatar">{message.initials}</div><div><div className="transcriptMeta"><strong>{message.role}</strong><span>{message.status === "speaking" ? "Speaking" : "Complete"}</span></div><p>{message.body}</p>{message.vote && <div className="voteTag"><span>{message.isFinal ? "Committee decision" : "Vote"}</span><strong>{message.vote}</strong></div>}</div></article>)}
-            {loading && <div className="analysisPulse"><span /><span /><span /> Committee analysis in progress</div>}
-            {result && <div className="postDecision"><button type="button">Continue discussion</button><button type="button">View full rationale</button><button type="button" className="primaryButton" onClick={resetSession}>Start new session</button></div>}
-            {result && <div className="warning">Demo mode: verified market data must be connected before public release.</div>}
-          </div>}
+          {!!messages.length && <div className="sessionTranscript"><div className="transcriptHeading"><div><span>{t.record}</span><h3>{t.discussion}</h3></div><button type="button" onClick={() => roomBodyRef.current?.scrollTo({top:0,behavior:"smooth"})}>{t.back}</button></div>{messages.map(message => <article className={`transcriptMessage ${message.isFinal ? "final":""}`} key={message.id}><div className="transcriptAvatar">{message.initials}</div><div><div className="transcriptMeta"><strong>{message.role}</strong><span>{message.status === "speaking" ? t.speaking : t.complete}</span></div><p>{message.body}</p>{message.vote && <div className="voteTag"><span>{message.isFinal ? t.decision : t.vote}</span><strong>{message.vote}</strong></div>}</div></article>)}{loading && <div className="analysisPulse"><span /><span /><span /> {t.progress}</div>}{result && <div className="postDecision"><button type="button">{t.continue}</button><button type="button">{t.rationale}</button><button type="button" className="primaryButton" onClick={resetSession}>{t.newSession}</button></div>}{result && <div className="warning">{t.warning}</div>}</div>}
         </div>
       </section>
     </div>
