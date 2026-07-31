@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./phase2.css";
 import "./globals-phase2.css";
+import "./boardroom-fix.css";
 
 export const metadata: Metadata = {
   title: "AI Investment Committee",
