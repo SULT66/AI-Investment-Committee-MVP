@@ -4,6 +4,7 @@ import "./phase2.css";
 import "./globals-phase2.css";
 import "./boardroom-fix.css";
 import "./committee/boardroom-v5.css";
+import "./committee/boardroom-v6.css";
 
 export const metadata: Metadata = {
   title: "AI Investment Committee",
