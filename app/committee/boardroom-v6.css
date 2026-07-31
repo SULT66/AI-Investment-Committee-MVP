@@ -1,0 +1,19 @@
+/* Boardroom V6: clearer approved scene, sharper cards, less obstruction. */
+.aicV4{background:#020609!important}
+.aicMembers{height:104px!important;padding:8px 12px!important;gap:8px!important;background:#04090d!important}
+.aicMember{position:relative!important;height:86px!important;grid-template-columns:72px 1fr!important;padding:0 10px 0 0!important;overflow:hidden!important;background:linear-gradient(145deg,#0d141a,#071016)!important;border-color:#26343d!important}
+.aicMember img{display:block!important;width:72px!important;height:86px!important;object-fit:cover!important;object-position:center top!important;filter:saturate(.82) contrast(1.08) brightness(.9)!important}
+.aicMember:before{display:none!important}
+.aicMember strong{font-size:13px!important}.aicMember span{margin-top:5px!important;font-size:11px!important}.aicMember em{margin-top:6px!important;font-size:11px!important}
+.aicScene{min-height:520px!important;background-image:url('/boardroom-v3.svg')!important;background-size:cover!important;background-position:center 53%!important;background-repeat:no-repeat!important;background-color:#05090d!important}
+.aicScene:after{background:linear-gradient(180deg,rgba(2,6,9,.01),transparent 60%,rgba(2,6,9,.22) 100%)!important}
+.aicPeople{display:none!important}
+.aicScreen{width:min(43vw,680px)!important;min-height:240px!important;margin-top:18px!important;padding:20px 24px!important;background:rgba(3,10,14,.86)!important;backdrop-filter:blur(2px)!important;border-color:#2d414d!important;box-shadow:0 14px 42px rgba(0,0,0,.46)!important}
+.aicScreenHead{align-items:flex-start!important}.aicPrice{font-size:28px!important}.aicChartWrap{margin-top:14px!important}.aicChart{height:132px!important}
+.aicSide{top:18px!important;background:rgba(4,10,14,.86)!important;border-color:#2a3b46!important;backdrop-filter:blur(4px)!important}
+.aicBottom{position:relative!important;z-index:4!important;background:#142029!important}
+.aicPanel{background:rgba(6,14,20,.98)!important;min-height:170px!important}
+.aicDiscussion img{display:block!important}.aicDiscussion{grid-template-columns:56px 1fr!important}
+.aicFooter{position:relative!important;z-index:5!important}
+@media(max-width:1100px){.aicMembers{grid-template-columns:repeat(5,minmax(180px,1fr))!important;overflow-x:auto!important}.aicMember{grid-template-columns:64px 1fr!important}.aicMember img{width:64px!important}.aicScene{background-size:auto 100%!important;background-position:center!important;min-height:540px!important}.aicScreen{width:70vw!important}}
+@media(max-width:700px){.aicMembers{height:auto!important;grid-template-columns:repeat(5,180px)!important}.aicScene{min-height:520px!important;background-size:auto 100%!important}.aicScreen{width:92vw!important;padding:16px!important}.aicChartWrap{grid-template-columns:1fr!important}}
