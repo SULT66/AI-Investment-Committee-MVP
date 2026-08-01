@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { LanguageController } from "@/components/language-controller";
 import { DialogueLanguageFix } from "@/components/dialogue-language-fix";
 import { AudioControl } from "@/components/audio-control";
+import { InteractiveCommitteeBridge } from "@/components/interactive-committee-bridge";
 import "./globals.css";
 import "./phase2.css";
 import "./globals-phase2.css";
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}<LanguageController /><DialogueLanguageFix /><AudioControl /></body>
+      <body>{children}<LanguageController /><DialogueLanguageFix /><AudioControl /><InteractiveCommitteeBridge /></body>
     </html>
   );
 }
