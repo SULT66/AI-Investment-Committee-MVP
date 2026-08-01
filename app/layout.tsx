@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LanguageController } from "@/components/language-controller";
+import { DialogueLanguageFix } from "@/components/dialogue-language-fix";
 import "./globals.css";
 import "./phase2.css";
 import "./globals-phase2.css";
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}<LanguageController /></body>
+      <body>{children}<LanguageController /><DialogueLanguageFix /></body>
     </html>
   );
 }
