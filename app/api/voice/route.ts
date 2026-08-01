@@ -25,6 +25,55 @@ const styleByMember = {
   portfolio: "Speak in a composed advisory tone, focused on balance, allocation, and the client's full portfolio."
 } as const;
 
+const languageNames: Record<string, string> = {
+  en: "English",
+  ru: "Russian",
+  es: "Spanish",
+  fr: "French",
+  de: "German",
+  it: "Italian",
+  pt: "Portuguese",
+  ar: "Arabic",
+  tr: "Turkish",
+  az: "Azerbaijani"
+};
+
+async function normalizeLanguage(text: string, locale: string, apiKey: string) {
+  const code = locale.toLowerCase().split("-")[0];
+  if (code === "en") return text;
+
+  const target = languageNames[code] ?? locale;
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      messages: [
+        {
+          role: "system",
+          content: `Translate the user's text completely into ${target}. Preserve ticker symbols, numbers, currencies, percentages, and investment terminology. Return only the translated text. Never leave sentences or clauses in another language.`
+        },
+        { role: "user", content: text }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    console.error("OpenAI translation request failed", response.status, detail);
+    throw new Error("Unable to normalize voice language");
+  }
+
+  const data = await response.json() as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  return data.choices?.[0]?.message?.content?.trim() || text;
+}
+
 export async function POST(request: Request) {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -33,6 +82,8 @@ export async function POST(request: Request) {
     }
 
     const input = requestSchema.parse(await request.json());
+    const normalizedText = await normalizeLanguage(input.text, input.language, apiKey);
+
     const response = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: {
@@ -42,8 +93,8 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: "gpt-4o-mini-tts",
         voice: voiceByMember[input.member],
-        input: input.text,
-        instructions: `${styleByMember[input.member]} Speak naturally in language locale ${input.language}. Do not translate or add words.`,
+        input: normalizedText,
+        instructions: `${styleByMember[input.member]} Speak naturally and exclusively in locale ${input.language}. Do not translate, paraphrase, add words, or switch languages.`,
         response_format: "mp3"
       })
     });
