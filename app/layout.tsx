@@ -5,12 +5,14 @@ import { DialogueLanguageFix } from "@/components/dialogue-language-fix";
 import { AudioControl } from "@/components/audio-control";
 import { InteractiveCommitteeBridge } from "@/components/interactive-committee-bridge";
 import { MarketDataBridge } from "@/components/market-data-bridge";
+import { PremiumMarketDeck } from "@/components/premium-market-deck";
 import "./globals.css";
 import "./phase2.css";
 import "./globals-phase2.css";
 import "./boardroom-fix.css";
 import "./committee/boardroom-v5.css";
 import "./committee/boardroom-v6.css";
+import "./committee/premium-boardroom-v7.css";
 
 export const metadata: Metadata = {
   title: "AI Investment Committee",
@@ -27,6 +29,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <AudioControl />
         <InteractiveCommitteeBridge />
         <MarketDataBridge />
+        <PremiumMarketDeck />
 
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-T2LZE9N3Y0"
