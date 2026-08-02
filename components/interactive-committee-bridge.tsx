@@ -52,8 +52,8 @@ export function InteractiveCommitteeBridge(){
   useEffect(()=>{
     const originalFetch=window.fetch.bind(window);
     window.fetch=async(input,init)=>{
-      const url=typeof input==="string"?input:input instanceof URL?input.toString():input.url;
       let proposal:Record<string,unknown>|undefined;
+      const url=typeof input==="string"?input:input instanceof URL?input.toString():input.url;
       if(url.includes("/api/committee/sessions")&&typeof init?.body==="string"){
         try{proposal=JSON.parse(init.body);window.__aicLatestProposal=proposal}catch{}
       }
@@ -72,7 +72,8 @@ export function InteractiveCommitteeBridge(){
       if(!button)return;
       event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
       const input=document.querySelector<HTMLInputElement>(".aicFooter input");
-      const question=input?.value.trim();
+      if(!input)return;
+      const question=input.value.trim();
       if(!question||!window.__aicLatestRecommendation||!window.__aicLatestProposal)return;
       button.disabled=true;const oldText=button.textContent;button.textContent=language()==="ru"?"Комитет отвечает...":"Committee responding...";
       input.value="";addLine(language()==="ru"?"Клиент":"Client",question,"chairman","statement");
