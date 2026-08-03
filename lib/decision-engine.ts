@@ -1,5 +1,6 @@
 import type { CommitteeRequest, MemberOpinion, Recommendation, Vote } from "./types";
 import type { Language } from "./i18n";
+import { extraOpinions } from "./committee-extra-members";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -184,7 +185,8 @@ export function runDemoCommittee(input: LocalizedInput): Recommendation {
     { memberId: "fundamental", title: c.titles[0], vote: "buy", confidence: 0.76, suggestedAllocationPercent: suggestedAllocation, thesis: `${ticker} ${c.theses[0]}`, risks: c.risks[0] },
     { memberId: "market", title: c.titles[1], vote: "buy_partial", confidence: 0.67, suggestedAllocationPercent: suggestedAllocation, thesis: c.theses[1], risks: c.risks[1] },
     { memberId: "risk", title: c.titles[2], vote: input.currentSectorExposure >= 35 ? "hold" : "buy_partial", confidence: 0.82, suggestedAllocationPercent: Math.min(suggestedAllocation, 2), thesis: c.theses[2], risks: c.risks[2] },
-    { memberId: "portfolio", title: c.titles[3], vote: decision, confidence: baseConfidence, suggestedAllocationPercent: suggestedAllocation, thesis: c.theses[3], risks: c.risks[3] }
+    { memberId: "portfolio", title: c.titles[3], vote: decision, confidence: baseConfidence, suggestedAllocationPercent: suggestedAllocation, thesis: c.theses[3], risks: c.risks[3] },
+    ...extraOpinions(input, { suggestedAllocation, baseConfidence })
   ];
 
   return {
