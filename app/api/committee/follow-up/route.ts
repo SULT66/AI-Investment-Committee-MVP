@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 
-const memberSchema = z.enum(["chairman", "fundamental", "market", "risk", "portfolio"]);
+const memberSchema = z.enum(["chairman", "fundamental", "market", "risk", "portfolio", "quant", "macro"]);
 const requestSchema = z.object({
   question: z.string().trim().min(1).max(2000),
   language: z.string().trim().min(2).max(10).default("en"),
@@ -24,7 +24,7 @@ const outputSchema = {
         type: "object",
         additionalProperties: false,
         properties: {
-          member: { type: "string", enum: ["chairman", "fundamental", "market", "risk", "portfolio"] },
+          member: { type: "string", enum: ["chairman", "fundamental", "market", "risk", "portfolio", "quant", "macro"] },
           role: { type: "string" },
           text: { type: "string" },
           kind: { type: "string", enum: ["statement", "interruption", "reaction", "decision"] }
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     if (!apiKey) return NextResponse.json({ error: "OpenAI is not configured" }, { status: 503 });
 
     const input = requestSchema.parse(await request.json());
-    const prompt = `You are running an interactive professional investment committee. A client has interrupted the meeting with a question. Reply as a realistic short discussion among the relevant committee members, not as one assistant. The chairman should acknowledge the client, then select the best one or two specialists to answer. Members may disagree briefly. Stay grounded in the existing proposal and recommendation. Do not invent live market data. Use only the requested language: ${input.language}. Every turn must be entirely in that language. If the new question materially changes the conclusion, update the decision, confidence from 0 to 1, and portfolio allocation percentage. Otherwise preserve them.
+    const prompt = `You are running an interactive professional investment committee. A client has interrupted the meeting with a question. Reply as a realistic short discussion among the relevant committee members, not as one assistant. The chairman should acknowledge the client, then select the best one or two specialists to answer. The committee has seven seats: chairman, fundamental, market, risk, portfolio, quant and macro. Members may disagree briefly. Stay grounded in the existing proposal and recommendation. Do not invent live market data. Use only the requested language: ${input.language}. Every turn must be entirely in that language. If the new question materially changes the conclusion, update the decision, confidence from 0 to 1, and portfolio allocation percentage. Otherwise preserve them.
 
 PROPOSAL:
 ${JSON.stringify(input.proposal)}
