@@ -13,6 +13,7 @@ import "./boardroom-fix.css";
 import "./committee/boardroom-v5.css";
 import "./committee/boardroom-v6.css";
 import "./committee/premium-boardroom-v7.css";
+import "./committee/boardroom-final.css";
 
 export const metadata: Metadata = {
   title: "AI Investment Committee",
