@@ -1,4 +1,4 @@
-export type Vote = "buy" | "buy_partial" | "hold" | "avoid" | "reduce";
+export type Vote = "buy" | "buy_partial" | "hold" | "wait" | "reduce" | "avoid" | "defer";
 
 export interface CommitteeRequest {
   ticker: string;
@@ -9,6 +9,8 @@ export interface CommitteeRequest {
   horizonYears: number;
 }
 
+export type EvidenceSource = { claim: string; evidence: string; asOf: string };
+
 export interface MemberOpinion {
   memberId: string;
   title: string;
@@ -17,6 +19,7 @@ export interface MemberOpinion {
   suggestedAllocationPercent: number;
   thesis: string;
   risks: string[];
+  sources?: EvidenceSource[];
 }
 
 export interface Recommendation {
@@ -31,4 +34,12 @@ export interface Recommendation {
   opinions: MemberOpinion[];
   generatedAt: string;
   dataMode: "demo" | "live";
+  confidenceBreakdown?: unknown;
+  portfolioFit?: string;
+  decisionHorizon?: string;
+  dissent?: Array<{ member: string; vote: string; reason: string }>;
+  policy?: unknown;
+  sizing?: unknown;
+  policyChecks?: unknown;
+  dataSufficiency?: unknown;
 }

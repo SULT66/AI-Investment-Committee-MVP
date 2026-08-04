@@ -82,6 +82,7 @@ select.pillBtn{padding:8px 10px}
 .xBtn{background:none;border:none;color:var(--slate);font-size:15px;cursor:pointer;line-height:1}
 .xBtn:hover{color:var(--ink)}
 .deckClose{position:absolute;top:7px;right:9px}
+.yourDecision{pointer-events:auto;margin:-4px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--amber)}
 .panels{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}
 .glass{pointer-events:auto;background:rgba(6,12,22,.66);border:1px solid rgba(77,163,255,.22);padding:13px 15px}
 .glass h4{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--cyan);font-weight:500;
@@ -92,6 +93,12 @@ select.pillBtn{padding:8px 10px}
 .glass td:first-child{color:var(--slate);padding-right:10px}
 .glass td:last-child{text-align:right;font-family:var(--mono);color:var(--ink)}
 .glass tr:last-child td{border-bottom:none}
+.argFor{color:#B7E4C7!important;text-align:left!important;font-family:var(--body)!important}
+.argAgainst{color:#F3C0B6!important;text-align:left!important;font-family:var(--body)!important}
+.argDissent{color:#CBD8EA!important;text-align:left!important;font-family:var(--body)!important;line-height:1.45}
+.gaps{margin-top:8px;font-size:11.5px;color:var(--amber);line-height:1.5}
+.notAdvice{position:absolute;left:20px;bottom:2px;z-index:8;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.06em;color:#5A6478}
 .gUp{color:var(--up)!important}.gDown{color:var(--down)!important}.gWarn{color:var(--amber)!important}
 
 /* Q&A */
@@ -212,12 +219,14 @@ select.pillBtn{padding:8px 10px}
       </div>
       <button class="xBtn deckClose" id="deckClose" aria-label="Hide">✕</button>
     </div>
+    <p class="yourDecision" id="yourDecision"></p>
     <div class="panels">
       <section class="glass" id="panelVotes"></section>
       <section class="glass" id="panelRisk"></section>
       <section class="glass" id="panelMarket"></section>
     </div>
   </div>
+  <div class="notAdvice" id="notAdvice"></div>
   <div class="qaBar" id="qaBar" hidden>
     <input id="qaInput" autocomplete="off" maxlength="400" placeholder="Ask the committee…" />
     <button class="qaSend" id="qaSend">Ask</button>
@@ -252,6 +261,7 @@ select.pillBtn{padding:8px 10px}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
 /* ============================================================
    AIC Committee Room — driven by the real AIC API
@@ -277,7 +287,7 @@ let lang = 'en';
 try { const s = localStorage.getItem('aic-lang'); if (s && LOCALES[s]) lang = s; } catch(e){}
 
 const T = {
-  en:{readsFigures:'The figures on the board:',live:'LIVE',voiceOn:'🔊 Voice on',voiceOff:'🔇 Voice off',floor:'Request the floor',ask:'Ask',
+  en:{yourLimit:'Your policy limit',yourDecision:'This is research. The decision is yours.',researchView:'COMMITTEE RESEARCH VIEW',maxExposure:'Max exposure',fit:'Portfolio fit',why:'Why',whyNot:'Why not',dissent:'Dissent',noDissent:'No dissent recorded.',policy:'Investment policy',binding:'Binding constraint',maxSingle:'Max single position',maxSector:'Max sector',minCash:'Min cash reserve',maxDd:'Max drawdown',horizon:'Horizon',permitted:'Policy-permitted maximum',checks:'Policy checks',dataPanel:'Data & provenance',price:'Price',lastTrade:'Last trade',checked:'Checked at',dataOk:'Data sufficient',confHow:'How confidence is calculated',deferred:'DECISION DEFERRED',deferredNote:'Insufficient current data to decide responsibly.',notAdvice:'AI-generated research and decision support · not investment advice · you decide',noLive:'MARKET DATA UNAVAILABLE',noLiveBadge:'NO LIVE DATA',noQuote:'no quote',readsFigures:'The figures on the board:',live:'LIVE',voiceOn:'🔊 Voice on',voiceOff:'🔇 Voice off',floor:'Request the floor',ask:'Ask',
       askPh:'Ask the committee…',newSession:'New session',ticker:'LIVE MARKET TICKER · FINNHUB',session:'SESSION',
       decision:'COMMITTEE DECISION',conf:'Confidence',amount:'Amount',alloc:'Allocation',votes:'Votes',
       pVotes:'Committee votes',pRisk:'Key risks',pMarket:'Market data',member:'Member',vote:'Vote',
@@ -289,7 +299,7 @@ const T = {
       errVoice:'Voice is unavailable right now.',errAsk:'The committee could not answer. Try again.',
       chairOpen:'The floor is open on the proposal.',chairClose:'That concludes the debate. The committee has decided.',
       aiVoice:'Voices are AI-generated.'},
-  ru:{readsFigures:'Цифры на экране:',live:'ЭФИР',voiceOn:'🔊 Голос вкл',voiceOff:'🔇 Голос выкл',floor:'Взять слово',ask:'Спросить',
+  ru:{yourLimit:'Ваш лимит по политике',yourDecision:'Это исследование. Решение принимаете вы.',researchView:'ИССЛЕДОВАНИЕ КОМИТЕТА',maxExposure:'Макс. вложение',fit:'Соответствие портфелю',why:'За',whyNot:'Против',dissent:'Особое мнение',noDissent:'Особых мнений не заявлено.',policy:'Инвестиционная политика',binding:'Ограничивающее условие',maxSingle:'Макс. одна позиция',maxSector:'Макс. сектор',minCash:'Мин. резерв наличности',maxDd:'Макс. просадка',horizon:'Горизонт',permitted:'Разрешено политикой',checks:'Проверки политики',dataPanel:'Данные и источники',price:'Цена',lastTrade:'Последняя сделка',checked:'Проверено',dataOk:'Данных достаточно',confHow:'Как считается уверенность',deferred:'РЕШЕНИЕ ОТЛОЖЕНО',deferredNote:'Недостаточно актуальных данных для ответственного решения.',notAdvice:'Исследование и поддержка решений · не инвестиционная рекомендация · решение за вами',noLive:'РЫНОЧНЫЕ ДАННЫЕ НЕДОСТУПНЫ',noLiveBadge:'НЕТ ЖИВЫХ ДАННЫХ',noQuote:'нет котировки',readsFigures:'Цифры на экране:',live:'ЭФИР',voiceOn:'🔊 Голос вкл',voiceOff:'🔇 Голос выкл',floor:'Взять слово',ask:'Спросить',
       askPh:'Задайте вопрос комитету…',newSession:'Новое заседание',ticker:'БИРЖЕВАЯ СТРОКА · FINNHUB',session:'ЗАСЕДАНИЕ',
       decision:'РЕШЕНИЕ КОМИТЕТА',conf:'Уверенность',amount:'Сумма',alloc:'Доля портфеля',votes:'Голоса',
       pVotes:'Голоса комитета',pRisk:'Ключевые риски',pMarket:'Рыночные данные',member:'Участник',vote:'Голос',
@@ -301,7 +311,7 @@ const T = {
       errVoice:'Голос сейчас недоступен.',errAsk:'Комитет не смог ответить. Попробуйте ещё раз.',
       chairOpen:'Заседание объявляю открытым.',chairClose:'Обсуждение завершено. Комитет принял решение.',
       aiVoice:'Голоса синтезированы ИИ.'},
-  es:{readsFigures:'Las cifras en pantalla:',live:'EN VIVO',voiceOn:'🔊 Voz activada',voiceOff:'🔇 Voz desactivada',floor:'Pedir la palabra',ask:'Preguntar',
+  es:{yourLimit:'Su límite de política',yourDecision:'Esto es investigación. La decisión es suya.',researchView:'ANÁLISIS DEL COMITÉ',maxExposure:'Exposición máx.',fit:'Encaje en cartera',why:'A favor',whyNot:'En contra',dissent:'Voto particular',noDissent:'Sin votos particulares.',policy:'Política de inversión',binding:'Restricción vinculante',maxSingle:'Posición máx.',maxSector:'Sector máx.',minCash:'Reserva mín. de efectivo',maxDd:'Caída máx.',horizon:'Horizonte',permitted:'Máximo permitido',checks:'Comprobaciones',dataPanel:'Datos y procedencia',price:'Precio',lastTrade:'Última operación',checked:'Verificado',dataOk:'Datos suficientes',confHow:'Cómo se calcula la confianza',deferred:'DECISIÓN APLAZADA',deferredNote:'Datos actuales insuficientes para decidir con responsabilidad.',notAdvice:'Investigación y apoyo a la decisión. No es asesoramiento financiero.',noLive:'DATOS DE MERCADO NO DISPONIBLES',noLiveBadge:'SIN DATOS EN VIVO',noQuote:'sin cotización',readsFigures:'Las cifras en pantalla:',live:'EN VIVO',voiceOn:'🔊 Voz activada',voiceOff:'🔇 Voz desactivada',floor:'Pedir la palabra',ask:'Preguntar',
       askPh:'Pregunte al comité…',newSession:'Nueva sesión',ticker:'CINTA DE MERCADO · FINNHUB',session:'SESIÓN',
       decision:'DECISIÓN DEL COMITÉ',conf:'Confianza',amount:'Importe',alloc:'Asignación',votes:'Votos',
       pVotes:'Votos del comité',pRisk:'Riesgos clave',pMarket:'Datos de mercado',member:'Miembro',vote:'Voto',
@@ -319,20 +329,21 @@ const t = () => T[lang] || T.en;
 
 /* ---------- committee seats: mapped 1:1 to the API member ids ---------- */
 const MEMBERS = [
-  /* seven seats, each mapped 1:1 to a backend member id */
-  {id:'fundamental', name:'David Harper',  role:'Fundamental Analyst', seat:-3, skin:0xC9A184, hair:0xB9BCC4, suit:0x1B2740, female:false},
-  {id:'market',      name:'Sarah Chen',    role:'Market Analyst',      seat:-2, skin:0xE0B394, hair:0x2B2320, suit:0x232A3E, female:true },
-  {id:'quant',       name:'Marcus Reed',   role:'Quantitative Analyst',seat:-1, skin:0x7A4F35, hair:0x17120F, suit:0x1E2437, female:false},
-  {id:'chairman',    name:'James Wilson',  role:'Committee Chair',     seat: 0, skin:0xD8A88A, hair:0xC9CDD6, suit:0x14213D, female:false},
-  {id:'risk',        name:'Elena Petrova', role:'Risk Officer',        seat: 1, skin:0xE3BBA0, hair:0xD8C9A8, suit:0x252B3C, female:true },
-  {id:'macro',       name:'Victor Lee',    role:'Macro Strategist',    seat: 2, skin:0xD9A87E, hair:0x14100C, suit:0x1A2138, female:false},
-  {id:'portfolio',   name:'Alex Morgan',   role:'Portfolio Strategist',seat: 3, skin:0xCE9C7E, hair:0x3A2B1D, suit:0x202A44, female:false}
+  /* eight seats, mapped 1:1 to the backend member ids */
+  {id:'fundamental', name:'David Harper',  role:'Fundamental Analyst',    seat:-3.5, skin:0xC9A184, hair:0xB9BCC4, suit:0x1B2740, female:false},
+  {id:'valuation',   name:'Sarah Chen',    role:'Valuation Analyst',      seat:-2.5, skin:0xE0B394, hair:0x2B2320, suit:0x232A3E, female:true },
+  {id:'portfolio',   name:'Marcus Reed',   role:'Portfolio Manager',      seat:-1.5, skin:0x7A4F35, hair:0x17120F, suit:0x1E2437, female:false},
+  {id:'chairman',    name:'James Wilson',  role:'Committee Chair',        seat:-0.5, skin:0xD8A88A, hair:0xC9CDD6, suit:0x14213D, female:false},
+  {id:'risk',        name:'Elena Petrova', role:'Risk Officer',           seat: 0.5, skin:0xE3BBA0, hair:0xD8C9A8, suit:0x252B3C, female:true },
+  {id:'macro',       name:'Victor Lee',    role:'Macro Strategist',       seat: 1.5, skin:0xD9A87E, hair:0x14100C, suit:0x1A2138, female:false},
+  {id:'sentiment',   name:'Alex Morgan',   role:'News & Sentiment',       seat: 2.5, skin:0xCE9C7E, hair:0x3A2B1D, suit:0x202A44, female:false},
+  {id:'redteam',     name:'Nina Alvarez',  role:'Red Team',               seat: 3.5, skin:0xD4A98C, hair:0x241A14, suit:0x2A1F2E, female:true }
 ];
 const byId  = id => MEMBERS.findIndex(m => m.id === id);
-const byApi = byId;                       /* the backend now speaks all seven ids */
+const byApi = byId;
 const CHAIR = byId('chairman');
 
-const VOTE_COLOR = {buy:'#22C55E', buy_partial:'#22C55E', hold:'#F5B84D', reduce:'#F5B84D', avoid:'#EF4444'};
+const VOTE_COLOR = {buy:'#22C55E', buy_partial:'#22C55E', hold:'#F5B84D', wait:'#F5B84D', defer:'#8FB8E8', reduce:'#F5B84D', avoid:'#EF4444'};
 const voteColor = v => VOTE_COLOR[v] || '#F5B84D';
 
 /* ============================================================
@@ -378,10 +389,10 @@ for (let r=2.2; r<=8; r+=1.4){
   wall.position.y = 3.2; scene.add(wall);
 })();
 
-const table = new THREE.Mesh(new THREE.CylinderGeometry(4.75,4.9,.16,72),
+const table = new THREE.Mesh(new THREE.CylinderGeometry(5.5,5.65,.16,72),
   new THREE.MeshStandardMaterial({color:0x101826, roughness:.22, metalness:.7}));
 table.scale.z=.58; table.position.y=.95; table.receiveShadow=true; scene.add(table);
-const base = new THREE.Mesh(new THREE.CylinderGeometry(3.5,3.85,.95,64),
+const base = new THREE.Mesh(new THREE.CylinderGeometry(4.1,4.45,.95,64),
   new THREE.MeshStandardMaterial({color:0x0A101C, roughness:.5, metalness:.4}));
 base.scale.z=.58; base.position.y=.47; scene.add(base);
 const puck = new THREE.Mesh(new THREE.CylinderGeometry(.72,.72,.1,48),
@@ -400,6 +411,33 @@ screenMesh.position.set(0,3.55,-5.2); scene.add(screenMesh);
 const bezel = new THREE.Mesh(new THREE.PlaneGeometry(10.7,3.94),
   new THREE.MeshStandardMaterial({color:0x05080F, roughness:.4, metalness:.6}));
 bezel.position.set(0,3.55,-5.23); scene.add(bezel);
+
+
+/* ============================================================
+   Real avatars (GLB)
+   ------------------------------------------------------------
+   Paste a model URL per seat and that member is replaced by a real
+   character. Any seat left empty keeps the built-in stylised figure,
+   so the room never breaks if a model fails to load.
+
+   Free source: https://readyplayer.me — create an avatar, copy the .glb
+   link, and append ?morphTargets=mouthOpen,mouthSmile so the lips move.
+   Character Creator / Mixamo exports work too.
+   ============================================================ */
+const AVATAR_URLS = {
+  fundamental: '',
+  market:      '',
+  quant:       '',
+  chairman:    '',
+  risk:        '',
+  macro:       '',
+  portfolio:   ''
+};
+/* a single ?avatars=<base64 json> in the URL can override the map, for quick tests */
+try {
+  const raw = new URLSearchParams(location.search).get('avatars');
+  if (raw) Object.assign(AVATAR_URLS, JSON.parse(atob(raw)));
+} catch(e){}
 
 /* ---------- avatars ---------- */
 function paintPlate(g, name, role, vote){
@@ -464,12 +502,12 @@ function makeMember(m, isChair){
   const ring=new THREE.Mesh(new THREE.RingGeometry(.55,.62,40),
     new THREE.MeshBasicMaterial({color:0x22C55E,transparent:true,opacity:0}));
   ring.rotation.x=-Math.PI/2; ring.position.y=.01; g.add(ring);
-  return {group:g, headG, mouth, ring};
+  return {group:g, headG, mouth, ring, keep:[chairBack, chairTop]};
 }
 
-const ARC = 4.25, people = [];
+const ARC = 5.1, people = [];
 MEMBERS.forEach((m,i)=>{
-  const a = m.seat * .30;
+  const a = m.seat * .245;
   const px = Math.sin(a)*ARC, pz = -Math.cos(a)*ARC*.72 - .2;
   const o = makeMember(m, m.id==='chairman');
   o.group.position.set(px,0,pz);
@@ -485,6 +523,47 @@ MEMBERS.forEach((m,i)=>{
   scene.add(plate); scene.add(o.group);
   people.push(o);
 });
+
+/* load a GLB avatar into a seat, replacing the stylised figure */
+const gltfLoader = (typeof THREE.GLTFLoader === 'function') ? new THREE.GLTFLoader() : null;
+
+function attachAvatar(seatIndex, url){
+  if (!gltfLoader || !url) return;
+  gltfLoader.load(url, (gltf) => {
+    const model = gltf.scene;
+    const o = people[seatIndex];
+
+    /* scale so the seated character matches the table height */
+    const box = new THREE.Box3().setFromObject(model);
+    const height = box.max.y - box.min.y;
+    const targetHeight = 1.75;                       /* metres, standing */
+    if (height > 0.1) model.scale.setScalar(targetHeight / height);
+
+    model.traverse((n) => {
+      if (n.isMesh){ n.castShadow = true; n.frustumCulled = false; }
+      /* head bone drives eye contact; morph targets drive the mouth */
+      const name = (n.name || '').toLowerCase();
+      if (!o.headBone && (name === 'head' || name.endsWith('head'))) o.headBone = n;
+      if (n.morphTargetDictionary){
+        const dict = n.morphTargetDictionary;
+        const key = ['mouthOpen','viseme_aa','jawOpen','mouth_open','A'].find(k => k in dict);
+        if (key !== undefined){ o.mouthMesh = n; o.mouthIndex = dict[key]; }
+      }
+    });
+
+    /* seat the character: hide the procedural body, keep the chair and floor ring */
+    o.group.traverse((n) => { if (n.isMesh && n !== o.ring && !o.keep.includes(n)) n.visible = false; });
+    model.position.y = 0.02;
+    model.rotation.y = Math.PI;                       /* GLB avatars face -Z by default */
+    o.avatarRoot = model;
+    o.group.add(model);
+    o.hasAvatar = true;
+  }, undefined, (err) => {
+    console.warn('Avatar failed for seat ' + seatIndex + ', keeping the built-in figure', err);
+  });
+}
+
+MEMBERS.forEach((m, i) => { if (AVATAR_URLS[m.id]) attachAvatar(i, AVATAR_URLS[m.id]); });
 
 /* ============================================================
    Camera direction
@@ -663,9 +742,9 @@ function demoSession(){
     decision:'buy_partial', confidence:0.67,
     proposedInvestmentAmount: Math.round(PROPOSAL.amount*0.4),
     proposedPortfolioAllocationPercent: 1.7,
-    summary:'The committee reviews '+PROPOSAL.ticker+' against the client portfolio, risk level and horizon.',
-    reasons:['Demo data — the live API was not reachable from this page.',
-             'Connect /api/committee/sessions to replace every figure here.'],
+    summary:'PREVIEW ONLY — the committee API was not reachable, so this session is illustrative and not an analysis of '+PROPOSAL.ticker+'.',
+    reasons:['The live committee API did not respond, so no real analysis was performed.',
+             'Every figure below is placeholder text, not market data.'],
     risks:['Sector concentration is already '+PROPOSAL.currentSectorExposure+'% of the portfolio.',
            'Valuation leaves little room for execution error.',
            'Macro tightening could compress multiples.'],
@@ -692,11 +771,9 @@ function demoSession(){
     ]
   };
 }
-function demoMarket(){
-  return {symbol:PROPOSAL.ticker,name:PROPOSAL.ticker,exchange:'NASDAQ',currency:'USD',
-    currentPrice:182.44,change:3.2,changePercent:1.8,open:179.4,high:183.6,low:178.9,previousClose:179.2,
-    peTTM:67.21,epsTTM:16.81,beta:1.68,fiftyTwoWeekHigh:1152.89,fiftyTwoWeekLow:393.22};
-}
+/* No fabricated market snapshot: if the feed is down the screen shows blanks,
+   never invented prices or ratios. */
+function demoMarket(){ return null; }
 
 async function runSession(){
   clearTimers(); stopVoice();
@@ -725,11 +802,33 @@ async function runSession(){
     console.warn('Committee API unreachable — running in demo mode', err);
     demoMode = true;
     session = demoSession();
-    if (!market) market = demoMarket();
+    market = market || demoMarket();
     note('DEMO — ' + t().errSession); modeBadge('DEMO DATA');
   }
   drawScreen();
+  if (session.deferred || session.decision === 'defer'){ showDeferred(); return; }
   runDebate();
+}
+
+
+/* The committee declines to decide rather than guessing. */
+function showDeferred(){
+  sessionState = 'qa';
+  screenMode = 'summary';
+  activeIdx = -1;
+  people.forEach(p => p.ringGoal = 0);
+  const L = t();
+  spkName.textContent = L.deferred;
+  spkRole.textContent = PROPOSAL.ticker;
+  quoteEl.classList.remove('show');
+  const gaps = (session.dataSufficiency && session.dataSufficiency.gaps) || [];
+  later(()=>{ quoteEl.textContent = gaps[0] || L.deferredNote; quoteEl.classList.add('show'); }, 300);
+  cutTo(new THREE.Vector3(0,3.25,6.4), new THREE.Vector3(0,3.25,5.6), new THREE.Vector3(0,2.6,-2.6), .004);
+  buildDeck();
+  document.getElementById('deck').hidden = false;
+  document.getElementById('qaBar').hidden = false;
+  setBlur(true);
+  drawScreen();
 }
 
 function runDebate(){
@@ -805,47 +904,89 @@ function showVerdict(){
 
 function buildDeck(){
   const L = t();
+  const esc = v => String(v == null ? '' : v).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
   const row = (k,v,cls) => '<tr><td>'+k+'</td><td class="'+(cls||'')+'">'+v+'</td></tr>';
-  const dec = String(session.decision || '').replace('_',' ').toUpperCase();
+  const dec = String(session.decision || 'defer').replace('_',' ').toUpperCase();
+  const deferred = session.deferred || session.decision === 'defer';
+
   document.getElementById('vbLabel').textContent = L.decision;
   const decEl = document.getElementById('vbDecision');
   decEl.textContent = dec;
   decEl.style.color = voteColor(session.decision);
   document.getElementById('vbConfL').textContent = L.conf;
-  document.getElementById('vbConf').textContent  = pct((session.confidence||0)*100);
-  document.getElementById('vbAmtL').textContent  = L.amount;
-  document.getElementById('vbAmt').textContent   = money(session.proposedInvestmentAmount);
+  document.getElementById('vbConf').textContent  = deferred ? '—' : pct((session.confidence||0)*100);
+  document.getElementById('vbAmtL').textContent  = L.yourLimit;
+  document.getElementById('vbAmt').textContent   =
+    session.sizing && session.sizing.maxPositionPercent != null
+      ? session.sizing.maxPositionPercent.toFixed(1) + '%'
+      : '—';
   document.getElementById('vbAllocL').textContent= L.alloc;
-  document.getElementById('vbAlloc').textContent = (Number(session.proposedPortfolioAllocationPercent)||0).toFixed(1)+'%';
-  document.getElementById('vbVoteL').textContent = L.votes;
-  document.getElementById('vbVotes').textContent = minutes.length + ' / ' + minutes.length;
+  document.getElementById('vbAlloc').textContent = deferred ? '—'
+    : (Number(session.proposedPortfolioAllocationPercent)||0).toFixed(1)+'%';
+  document.getElementById('vbVoteL').textContent = L.fit;
+  document.getElementById('vbVotes').textContent = session.portfolioFit ? esc(session.portfolioFit) : '—';
 
+  /* --- panel 1: why / why not / dissent --- */
+  const reasons = session.reasons || [], risks = session.risks || [], dissent = session.dissent || [];
   document.getElementById('panelVotes').innerHTML =
-    '<h4>'+L.pVotes+'</h4><div class="src">'+PROPOSAL.ticker+' · '+money(PROPOSAL.amount)+'</div><table>' +
-    minutes.map(r => '<tr><td>'+r.name+'<br><span style="opacity:.6;font-size:11px">'+r.role+'</span></td>' +
-      '<td style="color:'+voteColor(r.vote)+'">'+String(r.vote).replace('_',' ').toUpperCase() +
-      '<br><span style="opacity:.7;font-size:11px">'+pct((r.confidence||0)*100)+'</span></td></tr>').join('') +
+    '<h4>'+L.why+'</h4><table>' +
+      (reasons.length ? reasons.map(r=>'<tr><td colspan="2" class="argFor">+ '+esc(r)+'</td></tr>').join('')
+                      : row('—','')) +
+    '</table>' +
+    '<h4 style="margin-top:12px">'+L.whyNot+'</h4><table>' +
+      (risks.length ? risks.map(r=>'<tr><td colspan="2" class="argAgainst">− '+esc(r)+'</td></tr>').join('')
+                    : row('—','')) +
+    '</table>' +
+    '<h4 style="margin-top:12px">'+L.dissent+'</h4><table>' +
+      (dissent.length ? dissent.map(d=>'<tr><td colspan="2" class="argDissent"><b>'+esc(d.member)+'</b> — '+
+            String(d.vote||'').replace('_',' ').toUpperCase()+'<br>'+esc(d.reason)+'</td></tr>').join('')
+                      : '<tr><td colspan="2">'+L.noDissent+'</td></tr>') +
     '</table>';
 
-  const risks = (session.risks && session.risks.length ? session.risks : minutes.flatMap(m=>m.risks||[])).slice(0,6);
+  /* --- panel 2: policy limits and how the size was derived --- */
+  const pol = session.policy || {}, sz = session.sizing || {};
   document.getElementById('panelRisk').innerHTML =
-    '<h4>'+L.pRisk+'</h4><div class="src">'+(session.reviewTriggers && session.reviewTriggers.length ? session.reviewTriggers.length+' review triggers' : '')+'</div>' +
-    '<table>' + (risks.length ? risks.map(r=>'<tr><td colspan="2" style="color:#C3D1E4;text-align:left">• '+r+'</td></tr>').join('')
-                              : '<tr><td>—</td><td>—</td></tr>') + '</table>';
+    '<h4>'+L.policy+'</h4><div class="src">'+(sz.bindingConstraint ? L.binding+': '+esc(sz.bindingConstraint) : '')+'</div><table>' +
+    row(L.maxSingle, (pol.maxSinglePositionPercent!=null?pol.maxSinglePositionPercent+'%':'—')) +
+    row(L.maxSector, (pol.maxSectorPercent!=null?pol.maxSectorPercent+'%':'—')) +
+    row(L.minCash,   (pol.minCashReservePercent!=null?pol.minCashReservePercent+'%':'—')) +
+    row(L.maxDd,     (pol.maxDrawdownPercent!=null?pol.maxDrawdownPercent+'%':'—')) +
+    row(L.horizon,   (pol.horizonYears!=null?pol.horizonYears+'y':'—')) +
+    row('<b>'+L.permitted+'</b>', '<b>'+(sz.maxPositionPercent!=null?sz.maxPositionPercent.toFixed(1)+'%':'—')+'</b>') +
+    '</table>' +
+    ((session.policyChecks||[]).length
+      ? '<h4 style="margin-top:12px">'+L.checks+'</h4><table>' +
+        session.policyChecks.map(c=>row(esc(c.label), c.passed?'✓':'✕', c.passed?'gUp':'gDown')).join('') + '</table>'
+      : '');
 
-  const md = market || {};
+  /* --- panel 3: data provenance and confidence maths --- */
+  const md = session.marketData || market || {};
+  const suf = session.dataSufficiency || {};
+  const cb = session.confidenceBreakdown;
   document.getElementById('panelMarket').innerHTML =
-    '<h4>'+L.pMarket+'</h4><div class="src">'+(md.name||PROPOSAL.ticker)+(md.exchange?' · '+md.exchange:'')+'</div><table>' +
-    row('Price', md.currentPrice != null ? (md.currency||'USD')+' '+Number(md.currentPrice).toFixed(2) : '—',
-        (md.changePercent||0) >= 0 ? 'gUp' : 'gDown') +
-    row('Change', md.changePercent != null ? ((md.changePercent>=0?'+':'')+Number(md.changePercent).toFixed(2)+'%') : '—',
-        (md.changePercent||0) >= 0 ? 'gUp' : 'gDown') +
-    row('P/E (TTM)', md.peTTM != null ? Number(md.peTTM).toFixed(2) : '—') +
-    row('EPS (TTM)', md.epsTTM != null ? Number(md.epsTTM).toFixed(2) : '—') +
-    row('Beta', md.beta != null ? Number(md.beta).toFixed(2) : '—') +
-    row('52W', (md.fiftyTwoWeekLow != null && md.fiftyTwoWeekHigh != null)
-        ? Number(md.fiftyTwoWeekLow).toFixed(2)+' – '+Number(md.fiftyTwoWeekHigh).toFixed(2) : '—') +
-    '</table>';
+    '<h4>'+L.dataPanel+'</h4><div class="src">'+esc(md.name||PROPOSAL.ticker)+
+      (md.exchange?' · '+esc(md.exchange):'')+'</div><table>' +
+    row(L.price, md.currentPrice!=null ? (md.currency||'USD')+' '+Number(md.currentPrice).toFixed(2) : '—',
+        (md.changePercent||0)>=0?'gUp':'gDown') +
+    row(L.lastTrade, md.quoteTime ? new Date(md.quoteTime).toLocaleString() : '—') +
+    row(L.checked, suf.checkedAt ? new Date(suf.checkedAt).toLocaleTimeString() : '—') +
+    row('P/E (TTM)', md.peTTM!=null?Number(md.peTTM).toFixed(2):'—') +
+    row('Beta', md.beta!=null?Number(md.beta).toFixed(2):'—') +
+    row(L.dataOk, suf.sufficient ? '✓' : '✕', suf.sufficient?'gUp':'gDown') +
+    '</table>' +
+    ((suf.gaps||[]).length ? '<div class="gaps">'+suf.gaps.map(g=>'• '+esc(g)).join('<br>')+'</div>' : '') +
+    (cb && cb.components
+      ? '<h4 style="margin-top:12px">'+L.confHow+'</h4><table>' +
+        cb.components.map(c=>row(esc(c.label)+' <span style="opacity:.5">×'+c.weight+'</span>',
+          c.contribution.toFixed(2))).join('') +
+        row('<b>'+L.conf+'</b>','<b>'+(cb.score!=null?pct(cb.score*100):'—')+'</b>') + '</table>'
+      : '');
+
+  const yd = document.getElementById('yourDecision');
+  if (yd) yd.textContent = L.yourDecision;
+  document.getElementById('qaInput').placeholder = L.askPh;
+  document.getElementById('qaSend').textContent = L.ask;
+  document.getElementById('newSession').textContent = L.newSession;
 }
 
 /* ---------- client questions → /api/committee/follow-up ---------- */
@@ -1037,13 +1178,34 @@ function animate(){
     const speaking = i === activeIdx;
     o.group.position.y = Math.sin(tt*1.1 + o.phase) * .012;
     o.group.rotation.y = o.baseRotY + Math.sin(tt*.45 + o.phase) * .04;
+    const amp = speaking
+      ? (o.talking ? amplitude : (voiceOn ? 0 : Math.abs(Math.sin(tt*9))*.45))
+      : 0;
+
+    /* real avatars: head bone for eye contact, morph target for the mouth */
+    if (o.hasAvatar){
+      if (o.mouthMesh && o.mouthIndex !== undefined){
+        const infl = o.mouthMesh.morphTargetInfluences;
+        infl[o.mouthIndex] += ((speaking ? Math.min(1, amp * 1.3) : 0) - infl[o.mouthIndex]) * .35;
+      }
+      if (o.headBone){
+        if (speaking){
+          const q0 = o.headBone.quaternion.clone();
+          o.headBone.lookAt(camera.position);
+          const q1 = o.headBone.quaternion.clone();
+          o.headBone.quaternion.copy(q0).slerp(q1, .10);
+        } else {
+          o.headBone.quaternion.slerp(new THREE.Quaternion(), .05);
+        }
+      }
+    }
+
     if (speaking){
       const q0 = o.headG.quaternion.clone();
       o.headG.lookAt(camera.position);
       const q1 = o.headG.quaternion.clone();
       o.headG.quaternion.copy(q0).slerp(q1, .16);
       o.headG.rotation.x += Math.sin(tt*7.5)*.02;
-      const amp = o.talking ? amplitude : (voiceOn ? 0 : Math.abs(Math.sin(tt*9))*.45);
       o.mouth.scale.y += (.28 + amp*1.6 - o.mouth.scale.y) * .35;
       o.mouth.scale.z = .5 + amp*.25;
     } else {
@@ -1100,7 +1262,13 @@ function paintTicker(){
     const q = quotes[s];
     const pxEl = document.getElementById('px'+i), chEl = document.getElementById('ch'+i);
     if (!pxEl) return;
-    if (!q){ pxEl.textContent='—'; chEl.textContent=''; return; }
+    if (!q || !Number.isFinite(Number(q.currentPrice))){
+      pxEl.textContent = '—'; pxEl.classList.remove('flashUp','flashDown');
+      chEl.textContent = t().noQuote; chEl.className = 'chg';
+      document.querySelectorAll('.mp'+i).forEach(e=> e.textContent = '—');
+      document.querySelectorAll('.mc'+i).forEach(e=>{ e.textContent = ''; e.className = 'mc'+i; });
+      return;
+    }
     const up = (q.changePercent||0) >= 0;
     const pxTxt = Number(q.currentPrice).toFixed(2);
     const chTxt = (up?'▲ ':'▼ ') + Math.abs(q.changePercent||0).toFixed(2) + '%';
@@ -1115,9 +1283,6 @@ function paintTicker(){
     document.querySelectorAll('.mc'+i).forEach(e=>{ e.textContent = chTxt.replace(' ',''); e.className='mc'+i+' '+(up?'upTxt':'downTxt'); });
   });
 }
-const DEMO_PX = {SPY:612.4,QQQ:548.2,DIA:441.8,IWM:232.1,NVDA:182.44,AAPL:231.06,MSFT:512.1,AMZN:224.9,
-  GOOGL:198.3,META:702.4,TSLA:268.51,AMD:162.38,AVGO:1402.55,NFLX:648.12,JPM:201.44,V:334.7,XOM:118.2,
-  COIN:274.6,PLTR:88.4,UBER:79.3};
 async function refreshQuotes(){
   let ok = false;
   for (const s of symbols){
@@ -1127,16 +1292,32 @@ async function refreshQuotes(){
       quotes[s] = await r.json(); ok = true;
       if (s === PROPOSAL.ticker){ market = quotes[s]; drawScreen(); }
     } catch(e){
-      /* demo quotes so the room is viewable without the backend */
-      const base = DEMO_PX[s] || 100;
-      const prev = quotes[s] ? quotes[s].currentPrice : base;
-      const px = Math.max(1, prev + (Math.random()-.48) * base * 0.0012);
-      quotes[s] = {symbol:s, currentPrice:px, changePercent:(px/base-1)*100 + 0.8, currency:'USD'};
+      /* NEVER fabricate a price. An empty cell is honest; a plausible
+         number that is actually invented is not. */
+      quotes[s] = null;
     }
   }
-  if (!ok) demoBadge();
+  liveState(ok);
   paintTicker();
 }
+
+/* make the absence of live data impossible to mistake for live data */
+function liveState(ok){
+  const label = document.getElementById('tickerLabel');
+  const pill  = document.querySelector('.livePill');
+  if (ok){
+    label.textContent = t().ticker;
+    label.style.color = '';
+    if (pill) pill.style.display = '';
+    const b = document.getElementById('demoBadge'); if (b) b.remove();
+    return;
+  }
+  label.textContent = t().noLive;
+  label.style.color = 'var(--amber)';
+  if (pill) pill.style.display = 'none';      /* do not claim LIVE when it is not */
+  modeBadge(t().noLiveBadge);
+}
+
 function demoBadge(){ modeBadge('DEMO DATA'); }
 function modeBadge(label){
   let b = document.getElementById('demoBadge');
@@ -1226,6 +1407,7 @@ function applyLang(){
   document.getElementById('resetTicks').textContent = L.reset;
   document.getElementById('doneTicks').textContent = L.done;
   paintVoiceBtn();
+  document.getElementById('notAdvice').textContent = L.notAdvice;
   if (sessionState === 'qa' && session) buildDeck();
   drawScreen();
   try{ localStorage.setItem('aic-lang', lang); }catch(e){}
