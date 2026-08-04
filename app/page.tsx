@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SessionStarter } from "@/components/session-starter";
 
 /**
  * Positioning: research and decision-support, not investment advice.
@@ -23,7 +24,7 @@ export default function HomePage() {
             risk, macro, sentiment — and a Red Team argues against the position. You see the evidence,
             the disagreement and what would change the picture.
           </p>
-          <Link className="primaryButton" href="/committee">Open a research session</Link>
+          <SessionStarter />
           <p className="microNote">
             Research output only. AIC does not manage money, execute trades, promise results,
             or tell you how much to invest.

@@ -1,23 +1,12 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { LanguageController } from "@/components/language-controller";
-import { DialogueLanguageFix } from "@/components/dialogue-language-fix";
-import { AudioControl } from "@/components/audio-control";
-import { InteractiveCommitteeBridge } from "@/components/interactive-committee-bridge";
-import { MarketDataBridge } from "@/components/market-data-bridge";
 import { PremiumMarketDeck } from "@/components/premium-market-deck";
 import "./globals.css";
-import "./phase2.css";
-import "./globals-phase2.css";
-import "./boardroom-fix.css";
-import "./committee/boardroom-v5.css";
-import "./committee/boardroom-v6.css";
-import "./committee/premium-boardroom-v7.css";
 import "./committee/boardroom-final.css";
 
 export const metadata: Metadata = {
   title: "AI Investment Committee",
-  description: "Personalized investment analysis through an interactive AI committee."
+  description: "AI investment research and decision support. Independent AI analysts examine a stock, argue, and show their evidence. Not investment advice."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -25,11 +14,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body>
         {children}
-        <LanguageController />
-        <DialogueLanguageFix />
-        <AudioControl />
-        <InteractiveCommitteeBridge />
-        <MarketDataBridge />
         <PremiumMarketDeck />
 
         <Script
