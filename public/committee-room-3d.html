@@ -512,16 +512,19 @@ function screenShot(){
 function closeUp(i){
   if (!autoCam) return;
   const p = people[i].group.position;
-  const hp = new THREE.Vector3(p.x, 1.86, p.z);
+  /* frame the head AND shoulders, not just the face — aim slightly below eye level */
+  const hp = new THREE.Vector3(p.x, 1.70, p.z);
   const f = new THREE.Vector3(-.6*p.x, 0, 7-p.z).normalize();
   shotCount++;
   const kind = shotCount % 3;
-  let d0 = 2.9, d1 = 2.1, hy = 2.05;
-  if (kind === 1){ d0 = 2.4; d1 = 1.75; hy = 1.99; }
-  if (kind === 2){ d0 = 2.9; d1 = 2.15; hy = 1.74; }
+  /* medium shot · closer medium · slight low angle. Never tighter than this:
+     a face filling the frame reads as a glitch, not as direction. */
+  let d0 = 4.6, d1 = 3.8, hy = 2.10;
+  if (kind === 1){ d0 = 4.0; d1 = 3.3; hy = 2.02; }
+  if (kind === 2){ d0 = 4.7; d1 = 4.0; hy = 1.80; }
   const start = hp.clone().add(f.clone().multiplyScalar(d0)); start.y = hy;
-  const end   = hp.clone().add(f.clone().multiplyScalar(d1)); end.y = hy + .03;
-  cutTo(start, end, hp, .010);
+  const end   = hp.clone().add(f.clone().multiplyScalar(d1)); end.y = hy + .04;
+  cutTo(start, end, hp, .008);
 }
 document.getElementById('camToggle').addEventListener('click', e=>{
   autoCam = !autoCam;
@@ -1076,7 +1079,7 @@ animate();
    Market ticker — live from /api/market-data, user-editable
    ============================================================ */
 const DEFAULT_SYMS = ['SPY','QQQ','DIA','NVDA','AAPL','MSFT','AMZN','GOOGL','META','TSLA'];
-const CATALOG = ['SPY','QQQ','DIA','IWM','NVDA','AAPL','MSFT','AMZN','GOOGL','META','TSLA','AMD','AVGO','NFLX','JPM','V','XOM','COIN','PLTR','UBER'];
+const CATALOG = ['SPY','QQQ','DIA','IWM','GLD','TLT','NVDA','AAPL','MSFT','AMZN','GOOGL','META','TSLA','AMD','AVGO','NFLX','JPM','V','XOM','COIN','PLTR','UBER','BINANCE:BTCUSDT','BINANCE:ETHUSDT','OANDA:EUR_USD'];
 let symbols = DEFAULT_SYMS.slice();
 try { const s = JSON.parse(localStorage.getItem('aic-symbols')||'null'); if (Array.isArray(s) && s.length) symbols = s; } catch(e){}
 const saveSyms = () => { try{ localStorage.setItem('aic-symbols', JSON.stringify(symbols)); }catch(e){} };
@@ -1147,7 +1150,7 @@ function modeBadge(label){
 }
 renderTickerShell();
 refreshQuotes();
-setInterval(refreshQuotes, 60000);
+setInterval(refreshQuotes, 15000);   /* quotes must stay live */
 
 /* ticker editor */
 const modal = document.getElementById('tickModal');
@@ -1178,7 +1181,7 @@ symGrid.addEventListener('click', e=>{
 });
 async function addSymbol(){
   const input = document.getElementById('symInput');
-  const s = input.value.trim().toUpperCase();
+  const s = input.value.trim().toUpperCase().replace(/\s+/g,'');
   if (!s) return;
   if (symbols.includes(s)) return showErr(t().errDup);
   if (symbols.length >= 14) return showErr(t().errMax);

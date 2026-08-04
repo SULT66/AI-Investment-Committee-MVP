@@ -3,8 +3,9 @@ import { z } from "zod";
 import { getMarketSnapshot } from "@/lib/market-data";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const schema = z.object({ symbol: z.string().trim().min(1).max(15) });
+const schema = z.object({ symbol: z.string().trim().min(1).max(32) });
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +13,8 @@ export async function GET(request: Request) {
     const { symbol } = schema.parse({ symbol: url.searchParams.get("symbol") });
     const data = await getMarketSnapshot(symbol);
     return NextResponse.json(data, {
-      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" }
+      // quotes must be live, never served from a CDN copy
+      headers: { "Cache-Control": "no-store" }
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
