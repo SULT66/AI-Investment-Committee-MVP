@@ -21,6 +21,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Invalid symbol" }, { status: 400 });
     }
     const message = error instanceof Error ? error.message : "Unable to load market data";
+    if (message.includes("429")) {
+      return NextResponse.json({ error: message }, { status: 429, headers: { "Cache-Control": "no-store" } });
+    }
     const status = message.includes("FINNHUB_API_KEY") ? 503 : 502;
     return NextResponse.json({ error: message }, { status });
   }

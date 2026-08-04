@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { PremiumMarketDeck } from "@/components/premium-market-deck";
 import "./globals.css";
 import "./committee/boardroom-final.css";
 
@@ -14,7 +13,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body>
         {children}
-        <PremiumMarketDeck />
 
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-T2LZE9N3Y0"
