@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SessionStarter } from "@/components/session-starter";
+import { PremiumMarketDeck } from "@/components/premium-market-deck";
 
 /**
  * Positioning: research and decision-support, not investment advice.
@@ -79,6 +80,8 @@ export default function HomePage() {
           financial professional in your jurisdiction.
         </p>
       </section>
+
+      <PremiumMarketDeck />
     </main>
   );
 }

@@ -44,7 +44,7 @@ select.pillBtn{padding:8px 10px}
 #gl{position:absolute;inset:0;display:block;transition:filter 1s ease}
 #gl.blurred{filter:blur(9px) saturate(.85) brightness(.6)}
 
-.lowerThird{position:absolute;left:20px;bottom:18px;z-index:5;display:flex;flex-direction:column;gap:8px;max-width:min(480px,74%)}
+.lowerThird{position:absolute;left:20px;bottom:20px;z-index:5;display:flex;flex-direction:column;gap:8px;max-width:min(480px,74%)}
 .speakerCard{display:flex;align-items:center;gap:14px;background:rgba(4,8,16,.86);border:1px solid rgba(77,163,255,.35);
   border-left:3px solid var(--cyan);padding:11px 16px}
 .speakerName{font-weight:600;font-size:14.5px}
@@ -97,8 +97,8 @@ select.pillBtn{padding:8px 10px}
 .argAgainst{color:#F3C0B6!important;text-align:left!important;font-family:var(--body)!important}
 .argDissent{color:#CBD8EA!important;text-align:left!important;font-family:var(--body)!important;line-height:1.45}
 .gaps{margin-top:8px;font-size:11.5px;color:var(--amber);line-height:1.5}
-.notAdvice{position:absolute;left:20px;bottom:2px;z-index:8;font-family:var(--mono);font-size:9.5px;
-  letter-spacing:.06em;color:#5A6478}
+.notAdvice{padding:5px 20px 0;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;
+  color:#5A6478;border-bottom:1px solid rgba(255,255,255,.04)}
 .gUp{color:var(--up)!important}.gDown{color:var(--down)!important}.gWarn{color:var(--amber)!important}
 
 /* Q&A */
@@ -226,7 +226,6 @@ select.pillBtn{padding:8px 10px}
       <section class="glass" id="panelMarket"></section>
     </div>
   </div>
-  <div class="notAdvice" id="notAdvice"></div>
   <div class="qaBar" id="qaBar" hidden>
     <input id="qaInput" autocomplete="off" maxlength="400" placeholder="Ask the committee…" />
     <button class="qaSend" id="qaSend">Ask</button>
@@ -235,6 +234,7 @@ select.pillBtn{padding:8px 10px}
 </div>
 
 <div class="bottomDock">
+  <div class="notAdvice" id="notAdvice"></div>
   <div class="tickerHead">
     <span id="tickerLabel">LIVE MARKET TICKER · FINNHUB</span>
     <button class="editBtn" id="editTicks">✎ <span id="editTxt">Edit</span></button>
@@ -287,7 +287,7 @@ let lang = 'en';
 try { const s = localStorage.getItem('aic-lang'); if (s && LOCALES[s]) lang = s; } catch(e){}
 
 const T = {
-  en:{yourLimit:'Your policy limit',yourDecision:'This is research. The decision is yours.',researchView:'COMMITTEE RESEARCH VIEW',maxExposure:'Max exposure',fit:'Portfolio fit',why:'Why',whyNot:'Why not',dissent:'Dissent',noDissent:'No dissent recorded.',policy:'Investment policy',binding:'Binding constraint',maxSingle:'Max single position',maxSector:'Max sector',minCash:'Min cash reserve',maxDd:'Max drawdown',horizon:'Horizon',permitted:'Policy-permitted maximum',checks:'Policy checks',dataPanel:'Data & provenance',price:'Price',lastTrade:'Last trade',checked:'Checked at',dataOk:'Data sufficient',confHow:'How confidence is calculated',deferred:'DECISION DEFERRED',deferredNote:'Insufficient current data to decide responsibly.',notAdvice:'AI-generated research and decision support · not investment advice · you decide',noLive:'MARKET DATA UNAVAILABLE',noLiveBadge:'NO LIVE DATA',noQuote:'no quote',readsFigures:'The figures on the board:',live:'LIVE',voiceOn:'🔊 Voice on',voiceOff:'🔇 Voice off',floor:'Request the floor',ask:'Ask',
+  en:{inSession:'Session in progress',underReview:'Under review',yourLimit:'Your policy limit',yourDecision:'This is research. The decision is yours.',researchView:'COMMITTEE RESEARCH VIEW',maxExposure:'Max exposure',fit:'Portfolio fit',why:'Why',whyNot:'Why not',dissent:'Dissent',noDissent:'No dissent recorded.',policy:'Investment policy',binding:'Binding constraint',maxSingle:'Max single position',maxSector:'Max sector',minCash:'Min cash reserve',maxDd:'Max drawdown',horizon:'Horizon',permitted:'Policy-permitted maximum',checks:'Policy checks',dataPanel:'Data & provenance',price:'Price',lastTrade:'Last trade',checked:'Checked at',dataOk:'Data sufficient',confHow:'How confidence is calculated',deferred:'DECISION DEFERRED',deferredNote:'Insufficient current data to decide responsibly.',notAdvice:'AI-generated research and decision support · not investment advice · you decide',noLive:'MARKET DATA UNAVAILABLE',noLiveBadge:'NO LIVE DATA',noQuote:'no quote',readsFigures:'The figures on the board:',live:'LIVE',voiceOn:'🔊 Voice on',voiceOff:'🔇 Voice off',floor:'Request the floor',ask:'Ask',
       askPh:'Ask the committee…',newSession:'New session',ticker:'LIVE MARKET TICKER · FINNHUB',session:'SESSION',
       decision:'COMMITTEE DECISION',conf:'Confidence',amount:'Amount',alloc:'Allocation',votes:'Votes',
       pVotes:'Committee votes',pRisk:'Key risks',pMarket:'Market data',member:'Member',vote:'Vote',
@@ -299,7 +299,7 @@ const T = {
       errVoice:'Voice is unavailable right now.',errAsk:'The committee could not answer. Try again.',
       chairOpen:'The floor is open on the proposal.',chairClose:'That concludes the debate. The committee has decided.',
       aiVoice:'Voices are AI-generated.'},
-  ru:{yourLimit:'Ваш лимит по политике',yourDecision:'Это исследование. Решение принимаете вы.',researchView:'ИССЛЕДОВАНИЕ КОМИТЕТА',maxExposure:'Макс. вложение',fit:'Соответствие портфелю',why:'За',whyNot:'Против',dissent:'Особое мнение',noDissent:'Особых мнений не заявлено.',policy:'Инвестиционная политика',binding:'Ограничивающее условие',maxSingle:'Макс. одна позиция',maxSector:'Макс. сектор',minCash:'Мин. резерв наличности',maxDd:'Макс. просадка',horizon:'Горизонт',permitted:'Разрешено политикой',checks:'Проверки политики',dataPanel:'Данные и источники',price:'Цена',lastTrade:'Последняя сделка',checked:'Проверено',dataOk:'Данных достаточно',confHow:'Как считается уверенность',deferred:'РЕШЕНИЕ ОТЛОЖЕНО',deferredNote:'Недостаточно актуальных данных для ответственного решения.',notAdvice:'Исследование и поддержка решений · не инвестиционная рекомендация · решение за вами',noLive:'РЫНОЧНЫЕ ДАННЫЕ НЕДОСТУПНЫ',noLiveBadge:'НЕТ ЖИВЫХ ДАННЫХ',noQuote:'нет котировки',readsFigures:'Цифры на экране:',live:'ЭФИР',voiceOn:'🔊 Голос вкл',voiceOff:'🔇 Голос выкл',floor:'Взять слово',ask:'Спросить',
+  ru:{inSession:'Идёт заседание',underReview:'На рассмотрении',yourLimit:'Ваш лимит по политике',yourDecision:'Это исследование. Решение принимаете вы.',researchView:'ИССЛЕДОВАНИЕ КОМИТЕТА',maxExposure:'Макс. вложение',fit:'Соответствие портфелю',why:'За',whyNot:'Против',dissent:'Особое мнение',noDissent:'Особых мнений не заявлено.',policy:'Инвестиционная политика',binding:'Ограничивающее условие',maxSingle:'Макс. одна позиция',maxSector:'Макс. сектор',minCash:'Мин. резерв наличности',maxDd:'Макс. просадка',horizon:'Горизонт',permitted:'Разрешено политикой',checks:'Проверки политики',dataPanel:'Данные и источники',price:'Цена',lastTrade:'Последняя сделка',checked:'Проверено',dataOk:'Данных достаточно',confHow:'Как считается уверенность',deferred:'РЕШЕНИЕ ОТЛОЖЕНО',deferredNote:'Недостаточно актуальных данных для ответственного решения.',notAdvice:'Исследование и поддержка решений · не инвестиционная рекомендация · решение за вами',noLive:'РЫНОЧНЫЕ ДАННЫЕ НЕДОСТУПНЫ',noLiveBadge:'НЕТ ЖИВЫХ ДАННЫХ',noQuote:'нет котировки',readsFigures:'Цифры на экране:',live:'ЭФИР',voiceOn:'🔊 Голос вкл',voiceOff:'🔇 Голос выкл',floor:'Взять слово',ask:'Спросить',
       askPh:'Задайте вопрос комитету…',newSession:'Новое заседание',ticker:'БИРЖЕВАЯ СТРОКА · FINNHUB',session:'ЗАСЕДАНИЕ',
       decision:'РЕШЕНИЕ КОМИТЕТА',conf:'Уверенность',amount:'Сумма',alloc:'Доля портфеля',votes:'Голоса',
       pVotes:'Голоса комитета',pRisk:'Ключевые риски',pMarket:'Рыночные данные',member:'Участник',vote:'Голос',
@@ -311,7 +311,7 @@ const T = {
       errVoice:'Голос сейчас недоступен.',errAsk:'Комитет не смог ответить. Попробуйте ещё раз.',
       chairOpen:'Заседание объявляю открытым.',chairClose:'Обсуждение завершено. Комитет принял решение.',
       aiVoice:'Голоса синтезированы ИИ.'},
-  es:{yourLimit:'Su límite de política',yourDecision:'Esto es investigación. La decisión es suya.',researchView:'ANÁLISIS DEL COMITÉ',maxExposure:'Exposición máx.',fit:'Encaje en cartera',why:'A favor',whyNot:'En contra',dissent:'Voto particular',noDissent:'Sin votos particulares.',policy:'Política de inversión',binding:'Restricción vinculante',maxSingle:'Posición máx.',maxSector:'Sector máx.',minCash:'Reserva mín. de efectivo',maxDd:'Caída máx.',horizon:'Horizonte',permitted:'Máximo permitido',checks:'Comprobaciones',dataPanel:'Datos y procedencia',price:'Precio',lastTrade:'Última operación',checked:'Verificado',dataOk:'Datos suficientes',confHow:'Cómo se calcula la confianza',deferred:'DECISIÓN APLAZADA',deferredNote:'Datos actuales insuficientes para decidir con responsabilidad.',notAdvice:'Investigación y apoyo a la decisión. No es asesoramiento financiero.',noLive:'DATOS DE MERCADO NO DISPONIBLES',noLiveBadge:'SIN DATOS EN VIVO',noQuote:'sin cotización',readsFigures:'Las cifras en pantalla:',live:'EN VIVO',voiceOn:'🔊 Voz activada',voiceOff:'🔇 Voz desactivada',floor:'Pedir la palabra',ask:'Preguntar',
+  es:{inSession:'Sesión en curso',underReview:'En revisión',yourLimit:'Su límite de política',yourDecision:'Esto es investigación. La decisión es suya.',researchView:'ANÁLISIS DEL COMITÉ',maxExposure:'Exposición máx.',fit:'Encaje en cartera',why:'A favor',whyNot:'En contra',dissent:'Voto particular',noDissent:'Sin votos particulares.',policy:'Política de inversión',binding:'Restricción vinculante',maxSingle:'Posición máx.',maxSector:'Sector máx.',minCash:'Reserva mín. de efectivo',maxDd:'Caída máx.',horizon:'Horizonte',permitted:'Máximo permitido',checks:'Comprobaciones',dataPanel:'Datos y procedencia',price:'Precio',lastTrade:'Última operación',checked:'Verificado',dataOk:'Datos suficientes',confHow:'Cómo se calcula la confianza',deferred:'DECISIÓN APLAZADA',deferredNote:'Datos actuales insuficientes para decidir con responsabilidad.',notAdvice:'Investigación y apoyo a la decisión. No es asesoramiento financiero.',noLive:'DATOS DE MERCADO NO DISPONIBLES',noLiveBadge:'SIN DATOS EN VIVO',noQuote:'sin cotización',readsFigures:'Las cifras en pantalla:',live:'EN VIVO',voiceOn:'🔊 Voz activada',voiceOff:'🔇 Voz desactivada',floor:'Pedir la palabra',ask:'Preguntar',
       askPh:'Pregunte al comité…',newSession:'Nueva sesión',ticker:'CINTA DE MERCADO · FINNHUB',session:'SESIÓN',
       decision:'DECISIÓN DEL COMITÉ',conf:'Confianza',amount:'Importe',alloc:'Asignación',votes:'Votos',
       pVotes:'Votos del comité',pRisk:'Riesgos clave',pMarket:'Datos de mercado',member:'Miembro',vote:'Voto',
@@ -453,7 +453,7 @@ function makePlate(m){
   const c=document.createElement('canvas'); c.width=512; c.height=168;
   const g=c.getContext('2d'); paintPlate(g,m.name,m.role||'',m.vote);
   const tx=new THREE.CanvasTexture(c);
-  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(1.15,.38), new THREE.MeshBasicMaterial({map:tx,transparent:true}));
+  const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.95,.31), new THREE.MeshBasicMaterial({map:tx,transparent:true}));
   mesh.userData.repaint=()=>{paintPlate(g,m.name,m.role||'',m.vote); tx.needsUpdate=true;};
   return mesh;
 }
@@ -517,7 +517,7 @@ MEMBERS.forEach((m,i)=>{
   o.talking = false;
   const plate = makePlate(m);
   const dir = new THREE.Vector3(px,0,pz).normalize();
-  plate.position.set(px - dir.x*1.05, 1.28, pz - dir.z*1.05 + .85);
+  plate.position.set(px - dir.x*1.02, 1.22, pz - dir.z*1.02 + .82);
   plate.lookAt(plate.position.x*1.4, 1.1, 8);
   o.plate = plate;
   scene.add(plate); scene.add(o.group);
@@ -1147,15 +1147,37 @@ function drawScreen(){
     scr.fillStyle='#7E8CA3'; scr.font='400 24px sans-serif';
     (session.reasons||[]).slice(0,3).forEach((r,i)=> scr.fillText(fit(scr,'• '+r,540), 1010, 396+i*40));
   } else {
-    scr.fillStyle='#54607A'; scr.font='400 28px sans-serif';
-    scr.fillText(L.connecting, 48, 250);
-    minutes.forEach((r,i)=>{
-      const y = 306 + i*54;
-      scr.fillStyle='#EAF1FA'; scr.font='500 26px sans-serif';
-      scr.fillText(fit(scr, r.name+' · '+r.role, 620), 48, y);
-      scr.fillStyle=voteColor(r.vote); scr.font='600 24px monospace';
-      scr.textAlign='right'; scr.fillText(String(r.vote).replace('_',' ').toUpperCase(), 940, y); scr.textAlign='left';
-    });
+    const L2 = t();
+    if (!session){
+      scr.fillStyle='#54607A'; scr.font='400 28px sans-serif';
+      scr.fillText(L2.connecting, 48, 250);
+    } else {
+      scr.fillStyle='#8FB8E8'; scr.font='600 26px sans-serif';
+      scr.fillText(L2.inSession.toUpperCase(), 48, 246);
+      scr.strokeStyle='#1E3A5F'; scr.beginPath(); scr.moveTo(48,262); scr.lineTo(1552,262); scr.stroke();
+      minutes.forEach((r,i)=>{
+        const y = 306 + i*46;
+        scr.fillStyle='#EAF1FA'; scr.font='500 24px sans-serif';
+        scr.fillText(fit(scr, r.name+' · '+r.role, 900), 48, y);
+        scr.fillStyle=voteColor(r.vote); scr.font='600 22px monospace';
+        scr.textAlign='right'; scr.fillText(String(r.vote).replace('_',' ').toUpperCase(), 1000, y); scr.textAlign='left';
+        scr.strokeStyle='#0F1B2E'; scr.beginPath(); scr.moveTo(48,y+14); scr.lineTo(1000,y+14); scr.stroke();
+      });
+      /* right column: the proposal under review */
+      scr.fillStyle='#54607A'; scr.font='400 22px monospace';
+      scr.fillText(L2.underReview.toUpperCase(), 1070, 246);
+      scr.fillStyle='#EAF1FA'; scr.font='500 26px monospace';
+      scr.fillText(PROPOSAL.ticker, 1070, 292);
+      scr.fillStyle='#8FB8E8'; scr.font='400 22px monospace';
+      scr.fillText(money(PROPOSAL.amount) + ' / ' + money(PROPOSAL.portfolioValue), 1070, 332);
+      scr.fillText(PROPOSAL.horizonYears + 'y · ' + PROPOSAL.riskTolerance, 1070, 370);
+      if (session.sizing && session.sizing.maxPositionPercent != null){
+        scr.fillStyle='#54607A'; scr.font='400 20px monospace';
+        scr.fillText(t().yourLimit.toUpperCase(), 1070, 422);
+        scr.fillStyle='#F5B84D'; scr.font='500 30px monospace';
+        scr.fillText(session.sizing.maxPositionPercent.toFixed(1)+'%', 1070, 460);
+      }
+    }
   }
   scrTex.needsUpdate = true;
 }
@@ -1339,7 +1361,7 @@ function modeBadge(label){
 }
 renderTickerShell();
 refreshQuotes();
-setInterval(refreshQuotes, 15000);   /* quotes must stay live */
+setInterval(refreshQuotes, 30000);   /* the server caches for ~12s, so this stays live */
 
 /* ticker editor */
 const modal = document.getElementById('tickModal');

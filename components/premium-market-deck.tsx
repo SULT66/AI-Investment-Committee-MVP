@@ -171,7 +171,7 @@ export function PremiumMarketDeck() {
       }
     }
     void loadQuotes();
-    const timer = window.setInterval(loadQuotes, 15000);
+    const timer = window.setInterval(loadQuotes, 30000);
     return () => {
       active = false;
       window.clearInterval(timer);

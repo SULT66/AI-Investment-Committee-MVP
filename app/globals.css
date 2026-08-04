@@ -53,3 +53,39 @@
   color:#eaf1fa;padding:9px 11px;font:inherit;font-size:13.5px}
 .constraintGrid input:focus,.constraintGrid select:focus{outline:none;border-color:#4da3ff}
 .starterConstraints .primaryButton{border:none;cursor:pointer;font:inherit;font-weight:600}
+
+/* ================= live market deck =================
+   These styles previously lived in the deleted phase CSS files.
+   Kept here so the component can never lose its layout again. */
+.premiumMarketDeck{position:fixed;left:0;right:0;bottom:0;z-index:40;background:#060B16;
+  border-top:1px solid #12233c;font-size:13px}
+.premiumTickerHead{display:flex;align-items:center;gap:10px;padding:6px 20px 0;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;letter-spacing:.14em;color:#7e8ca3}
+.premiumTickerHead .liveDot{width:6px;height:6px;border-radius:50%;background:#22c55e;flex:none}
+.premiumTickerHead small{margin-left:auto;letter-spacing:.04em}
+.premiumTickerRail{display:flex;gap:1px;background:#12233c;border-top:1px solid #12233c;margin-top:6px;
+  overflow-x:auto;scrollbar-width:none}
+.premiumTickerRail::-webkit-scrollbar{display:none}
+.premiumTickerItem{flex:1 0 auto;min-width:148px;background:#060B16;padding:8px 13px;
+  display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;align-items:center;gap:2px 8px}
+.premiumTickerItem strong{grid-column:1/3;font-weight:500;font-size:10.5px;letter-spacing:.04em;color:#8fb8e8;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.premiumTickerItem span{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#eaf1fa}
+.premiumTickerItem em{font-style:normal;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px}
+.premiumTickerItem em.up{color:#22c55e}
+.premiumTickerItem em.down{color:#ef4444}
+/* the sparkline must never grow to fill the page */
+.premiumTickerItem svg{grid-column:1/3;width:84px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;opacity:.55}
+.premiumTickerItem svg path{fill:none;stroke:currentColor;stroke-width:1.6}
+.premiumNewsRail{display:flex;align-items:center;gap:14px;border-top:1px solid #12233c;padding:7px 20px;overflow:hidden}
+.premiumNewsRail b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;letter-spacing:.14em;
+  color:#f5b84d;white-space:nowrap}
+.newsFlow{display:flex;gap:28px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.newsFlow::-webkit-scrollbar{display:none}
+.newsFlow a{display:inline-flex;align-items:baseline;gap:7px;white-space:nowrap;color:#8fb8e8;
+  text-decoration:none;font-size:12.5px}
+.newsFlow a:hover{color:#eaf1fa}
+.newsFlow time{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#7e8ca3}
+.newsEmpty{font-size:12.5px;color:#7e8ca3}
+
+.disclosure{padding-bottom:150px}

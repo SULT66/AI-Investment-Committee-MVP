@@ -78,7 +78,15 @@ export async function POST(request: Request) {
       countryOfResidence: withDefault(p.countryOfResidence, "", "country of residence")
     };
 
-    const marketData = await getMarketSnapshot(input.ticker).catch(() => null);
+    // one retry: a transient rate limit should not turn into a deferred decision
+    let marketData = await getMarketSnapshot(input.ticker).catch(() => null);
+    if (!marketData) {
+      await new Promise((r) => setTimeout(r, 1200));
+      marketData = await getMarketSnapshot(input.ticker).catch((e) => {
+        console.error("Market snapshot failed twice", e);
+        return null;
+      });
+    }
     const news = await getCompanyNews(input.ticker);
 
     const policy = buildPolicy(profile);

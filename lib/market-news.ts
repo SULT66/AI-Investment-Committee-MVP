@@ -23,7 +23,7 @@ export async function getCompanyNews(symbolInput: string, days = 14): Promise<Ne
   try {
     const res = await fetch(
       `https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(symbol)}&from=${fmt(from)}&to=${fmt(to)}`,
-      { headers: { "X-Finnhub-Token": token }, cache: "no-store" }
+      { headers: { "X-Finnhub-Token": token }, next: { revalidate: 300 } }
     );
     if (!res.ok) return [];
 

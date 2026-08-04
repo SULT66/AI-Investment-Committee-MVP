@@ -33,16 +33,60 @@ export type SymbolMatch = {
 const base = "https://finnhub.io/api/v1";
 
 /**
+ * Short-lived in-process cache.
+ *
+ * Every browser polling the ticker used to hit Finnhub directly, which burns the
+ * rate limit within seconds. A few seconds of sharing keeps quotes effectively
+ * live while collapsing many visitors into one upstream request.
+ */
+type CacheEntry = { at: number; value: unknown };
+const cache = new Map<string, CacheEntry>();
+const inflight = new Map<string, Promise<unknown>>();
+const QUOTE_TTL_MS = 12_000;
+const PROFILE_TTL_MS = 12 * 60 * 60 * 1000;  // company profile barely changes
+const METRIC_TTL_MS = 60 * 60 * 1000;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
  * Every call goes to the exchange feed directly — no ISR cache, no CDN copy.
  * Quotes are worthless if they are two minutes old.
  */
-async function finnhub<T>(path: string, token: string): Promise<T> {
+async function finnhubRaw<T>(path: string, token: string, attempt = 0): Promise<T> {
   const response = await fetch(`${base}${path}`, {
     headers: { "X-Finnhub-Token": token },
     cache: "no-store"
   });
+
+  // 429 means the plan's request budget is exhausted for this minute.
+  // One short retry smooths bursts; beyond that, fail honestly.
+  if (response.status === 429 && attempt < 1) {
+    await sleep(900);
+    return finnhubRaw<T>(path, token, attempt + 1);
+  }
+  if (response.status === 429) throw new Error("Finnhub rate limit reached (429)");
   if (!response.ok) throw new Error(`Finnhub request failed: ${response.status}`);
   return response.json() as Promise<T>;
+}
+
+async function finnhub<T>(path: string, token: string, ttl = QUOTE_TTL_MS): Promise<T> {
+  const hit = cache.get(path);
+  if (hit && Date.now() - hit.at < ttl) return hit.value as T;
+
+  // collapse concurrent requests for the same path into one upstream call
+  const running = inflight.get(path);
+  if (running) return running as Promise<T>;
+
+  const task = finnhubRaw<T>(path, token)
+    .then((value) => {
+      cache.set(path, { at: Date.now(), value });
+      if (cache.size > 400) cache.delete(cache.keys().next().value as string);
+      return value;
+    })
+    .finally(() => inflight.delete(path));
+
+  inflight.set(path, task);
+  return task;
 }
 
 const numberOrNull = (value: unknown) => {
@@ -76,7 +120,8 @@ export async function searchSymbols(query: string, limit = 12): Promise<SymbolMa
   try {
     const data = await finnhub<{ result?: Array<{ symbol?: string; description?: string; type?: string }> }>(
       `/search?q=${encodeURIComponent(q)}`,
-      token
+      token,
+      10 * 60 * 1000
     );
     return (data.result ?? [])
       .filter((r) => r.symbol)
@@ -114,8 +159,10 @@ export async function getMarketSnapshot(symbolInput: string): Promise<MarketSnap
 
   if (assetType === "stock") {
     const [p, f] = await Promise.allSettled([
-      finnhub<typeof profile>(`/stock/profile2?symbol=${encodeURIComponent(symbol)}`, token),
-      finnhub<{ metric?: Record<string, unknown> }>(`/stock/metric?symbol=${encodeURIComponent(symbol)}&metric=all`, token)
+      finnhub<typeof profile>(`/stock/profile2?symbol=${encodeURIComponent(symbol)}`, token, PROFILE_TTL_MS),
+      finnhub<{ metric?: Record<string, unknown> }>(
+        `/stock/metric?symbol=${encodeURIComponent(symbol)}&metric=all`, token, METRIC_TTL_MS
+      )
     ]);
     if (p.status === "fulfilled") profile = p.value ?? {};
     if (f.status === "fulfilled") metric = f.value?.metric ?? {};
