@@ -791,7 +791,15 @@ async function runSession(){
   try{
     const r = await fetch('/api/committee/sessions', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ ...PROPOSAL, language: lang })
+      body: JSON.stringify({
+        ticker: PROPOSAL.ticker,
+        amount: PROPOSAL.amount,
+        portfolioValue: PROPOSAL.portfolioValue,
+        currentSectorExposure: PROPOSAL.currentSectorExposure,
+        riskTolerance: PROPOSAL.riskTolerance,
+        horizonYears: PROPOSAL.horizonYears,
+        language: lang
+      })
     });
     if (!r.ok) throw new Error('sessions ' + r.status);
     session = await r.json();

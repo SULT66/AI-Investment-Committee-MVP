@@ -14,3 +14,42 @@
 .disclosure{max-width:1100px;margin:0 auto;padding:40px 32px 72px}
 .disclosure h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#8fb8e8;margin-bottom:14px}
 .disclosure p{max-width:78ch;font-size:12.5px;line-height:1.65;color:#7E8CA3;margin-bottom:12px}
+
+/* ---- session starter ---- */
+.starter{margin-top:26px;max-width:560px}
+.starterLabel{display:block;font-size:12.5px;letter-spacing:.06em;color:#8fb8e8;margin-bottom:10px}
+.starterRow{display:flex;gap:10px;flex-wrap:wrap}
+.starterRow input{flex:1;min-width:240px;background:rgba(255,255,255,.04);border:1px solid #1b3350;
+  color:#eaf1fa;padding:13px 15px;font:inherit;font-size:14.5px}
+.starterRow input:focus{outline:none;border-color:#4da3ff}
+.starterRow .primaryButton{border:none;cursor:pointer;font:inherit;font-weight:600}
+.starterRow .primaryButton:disabled{opacity:.45;cursor:default}
+.starterNote{margin-top:9px;font-size:12.5px;color:#7e8ca3}
+.starterError{margin-top:9px;font-size:12.5px;color:#f0705a}
+.starterResults{list-style:none;margin:10px 0 0;padding:0;max-height:230px;overflow-y:auto;
+  border:1px solid #1b3350;background:rgba(6,12,22,.9)}
+.starterResults li{border-bottom:1px solid rgba(255,255,255,.05)}
+.starterResults li:last-child{border-bottom:none}
+.starterResults button{display:flex;align-items:baseline;gap:12px;width:100%;background:none;border:none;
+  color:#cbd8ea;font:inherit;font-size:13px;text-align:left;padding:10px 14px;cursor:pointer}
+.starterResults button:hover{background:rgba(77,163,255,.1)}
+.starterResults b{color:#eaf1fa;min-width:110px}
+.starterResults span{flex:1;color:#7e8ca3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.starterResults em{font-style:normal;font-size:10px;letter-spacing:.1em;color:#4da3ff;text-transform:uppercase}
+.starterPopular{margin-top:12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:12.5px;color:#7e8ca3}
+.starterPopular button{background:rgba(255,255,255,.03);border:1px solid #1b3350;color:#8fb8e8;
+  font:inherit;font-size:12px;padding:5px 11px;cursor:pointer}
+.starterPopular button:hover{border-color:#4da3ff;color:#eaf1fa}
+.starterSelected{margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13.5px;color:#cbd8ea}
+.starterSelected b{color:#eaf1fa}
+.linkBtn{background:none;border:none;border-bottom:1px solid #1b3350;color:#8fb8e8;font:inherit;
+  font-size:12.5px;padding:0 0 2px;cursor:pointer}
+.linkBtn:hover{color:#eaf1fa}
+.starterConstraints{margin-top:16px;border:1px solid #1b3350;background:rgba(6,12,22,.6);padding:16px}
+.starterHint{font-size:12px;line-height:1.55;color:#7e8ca3;margin-bottom:14px}
+.constraintGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.constraintGrid label{display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:#8fb8e8}
+.constraintGrid input,.constraintGrid select{background:rgba(255,255,255,.04);border:1px solid #1b3350;
+  color:#eaf1fa;padding:9px 11px;font:inherit;font-size:13.5px}
+.constraintGrid input:focus,.constraintGrid select:focus{outline:none;border-color:#4da3ff}
+.starterConstraints .primaryButton{border:none;cursor:pointer;font:inherit;font-weight:600}
