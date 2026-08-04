@@ -30,5 +30,5 @@ export interface Recommendation {
   reviewTriggers: string[];
   opinions: MemberOpinion[];
   generatedAt: string;
-  dataMode: "demo";
+  dataMode: "demo" | "live";
 }
