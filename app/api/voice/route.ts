@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 const requestSchema = z.object({
   text: z.string().trim().min(1).max(4096),
   language: z.string().trim().min(2).max(10),
-  member: z.enum(["chairman", "fundamental", "market", "risk", "portfolio", "quant", "macro"])
+  member: z.enum(["chairman", "fundamental", "valuation", "market", "risk", "portfolio", "quant", "macro", "sentiment", "redteam"])
 });
 
 const voiceByMember = {
@@ -16,7 +16,10 @@ const voiceByMember = {
   risk: "onyx",
   portfolio: "marin",
   quant: "ash",
-  macro: "ballad"
+  macro: "ballad",
+  valuation: "verse",
+  sentiment: "coral",
+  redteam: "onyx"
 } as const;
 
 const styleByMember = {
@@ -26,7 +29,10 @@ const styleByMember = {
   risk: "Speak cautiously, firmly, and deliberately, emphasizing downside risks without sounding alarmist.",
   portfolio: "Speak in a composed advisory tone, focused on balance, allocation, and the client's full portfolio.",
   quant: "Speak precisely and evenly, like a quantitative analyst reading model output. Neutral affect, crisp diction on numbers.",
-  macro: "Speak thoughtfully and gravely, like a macro strategist, with deliberate pauses before conclusions."
+  macro: "Speak thoughtfully and gravely, like a macro strategist, with deliberate pauses before conclusions.",
+  valuation: "Speak carefully and precisely, like a valuation analyst walking through a range of scenarios.",
+  sentiment: "Speak briskly and attentively, like an analyst relaying the latest headlines and what they change.",
+  redteam: "Speak sharply and directly, like a sceptic arguing against the room. Firm, unhurried, unmistakably contrarian."
 } as const;
 
 const languageNames: Record<string, string> = {
