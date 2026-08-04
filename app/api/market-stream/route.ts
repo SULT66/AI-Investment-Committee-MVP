@@ -12,7 +12,7 @@ async function finnhub(path: string) {
   if (!token) throw new Error("FINNHUB_API_KEY is not configured");
   const response = await fetch(`https://finnhub.io/api/v1${path}`, {
     headers: { "X-Finnhub-Token": token },
-    next: { revalidate: 45 }
+    cache: "no-store"
   });
   if (!response.ok) throw new Error(`Finnhub request failed: ${response.status}`);
   return response.json();
@@ -21,7 +21,7 @@ async function finnhub(path: string) {
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
-    const focus = (url.searchParams.get("symbol") || "NVDA").toUpperCase().replace(/[^A-Z.-]/g, "").slice(0, 10);
+    const focus = (url.searchParams.get("symbol") || "NVDA").toUpperCase().replace(/[^A-Z0-9.:_-]/g, "").slice(0, 10);
     const requested = Array.from(new Set([...symbols, focus]));
 
     const quotes = await Promise.all(requested.map(async symbol => {

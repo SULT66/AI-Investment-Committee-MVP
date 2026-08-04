@@ -11,3 +11,36 @@
 .aicV5 .liveCaption{background:rgba(2,11,19,.94)!important}
 @media(max-width:1000px){.aicV5 .aicMembers{grid-template-columns:repeat(5,210px)!important;overflow-x:auto!important}.aicV5 .aicSceneV5{min-height:680px!important}.aicV5 .aicWallScreen{width:70vw!important}}
 @media(max-width:720px){.aicV5 .aicSceneV5{min-height:760px!important;background-position:center top!important}.aicV5 .aicWallScreen{width:92vw!important;top:150px!important}}
+
+/* ---- editable market ticker ---- */
+.premiumTickerHead{display:flex;align-items:center;gap:10px}
+.deckEditBtn{background:none;border:1px solid #234764;color:#8fb8e8;font:inherit;font-size:10px;
+  letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:999px;cursor:pointer}
+.deckEditBtn:hover{color:#4da3ff;border-color:#4da3ff}
+.premiumTickerHead small{margin-left:auto}
+.deckEditor{padding:12px 16px;border-top:1px solid #12233c;background:rgba(6,12,22,.75)}
+.deckHint{margin:0 0 10px;font-size:12.5px;color:#7e8ca3}
+.deckChips{display:flex;flex-wrap:wrap;gap:6px;max-height:160px;overflow-y:auto}
+.deckChip{background:rgba(255,255,255,.03);border:1px solid #1b3350;color:#7e8ca3;
+  font:inherit;font-size:11.5px;padding:6px 11px;cursor:pointer;border-radius:4px}
+.deckChip:hover{border-color:#4da3ff}
+.deckChip.on{color:#eaf1fa;border-color:rgba(77,163,255,.55);background:rgba(77,163,255,.1)}
+.deckAdd{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.deckAdd input{flex:1;min-width:160px;background:rgba(255,255,255,.04);border:1px solid #1b3350;color:#eaf1fa;
+  padding:8px 11px;font:inherit;font-size:12.5px;text-transform:uppercase;border-radius:4px}
+.deckAdd input:focus{outline:none;border-color:#4da3ff}
+.deckAdd button{background:rgba(77,163,255,.14);border:1px solid rgba(77,163,255,.45);color:#4da3ff;
+  padding:8px 16px;font:inherit;font-size:12.5px;cursor:pointer;border-radius:4px}
+.deckAdd button:disabled{opacity:.5;cursor:default}
+.deckReset{background:none!important;border-color:#1b3350!important;color:#7e8ca3!important}
+.deckNotice{margin:9px 0 0;font-size:12px;color:#f0705a}
+.deckResults{list-style:none;margin:10px 0 0;padding:0;max-height:190px;overflow-y:auto;border:1px solid #1b3350;border-radius:4px}
+.deckResults li{border-bottom:1px solid rgba(255,255,255,.05)}
+.deckResults li:last-child{border-bottom:none}
+.deckResults button{display:flex;align-items:baseline;gap:10px;width:100%;background:none;border:none;
+  color:#cbd8ea;font:inherit;font-size:12.5px;text-align:left;padding:9px 12px;cursor:pointer}
+.deckResults button:hover{background:rgba(77,163,255,.1)}
+.deckResults b{color:#eaf1fa;min-width:104px}
+.deckResults span{flex:1;color:#7e8ca3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.deckResults em{font-style:normal;font-size:10px;letter-spacing:.1em;color:#4da3ff;text-transform:uppercase}
+.deckSearching{padding:9px 12px;font-size:12.5px;color:#7e8ca3}
