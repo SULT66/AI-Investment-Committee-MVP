@@ -654,7 +654,7 @@ const pct = n => (Number(n)||0).toFixed(0) + '%';
 
 /* ---------- demo fallback: used only when the API is unreachable
    (e.g. opening this file outside the Next.js app). Clearly labelled. ---------- */
-let demoMode = false;
+let demoMode = false, newsItems = [];
 function demoSession(){
   return {
     decision:'buy_partial', confidence:0.67,
@@ -716,12 +716,14 @@ async function runSession(){
     if (!r.ok) throw new Error('sessions ' + r.status);
     session = await r.json();
     market = session.marketData || null;
+    if (session.analysisMode === 'fallback') modeBadge('TEMPLATE ANALYSIS');
+    if (Array.isArray(session.news) && session.news.length) newsItems = session.news;
   } catch(err){
     console.warn('Committee API unreachable — running in demo mode', err);
     demoMode = true;
     session = demoSession();
     if (!market) market = demoMarket();
-    note('DEMO — ' + t().errSession);
+    note('DEMO — ' + t().errSession); modeBadge('DEMO DATA');
   }
   drawScreen();
   runDebate();
@@ -1132,11 +1134,13 @@ async function refreshQuotes(){
   if (!ok) demoBadge();
   paintTicker();
 }
-function demoBadge(){
-  if (document.getElementById('demoBadge')) return;
-  const b = document.createElement('span');
+function demoBadge(){ modeBadge('DEMO DATA'); }
+function modeBadge(label){
+  let b = document.getElementById('demoBadge');
+  if (b){ b.textContent = label; return; }
+  b = document.createElement('span');
   b.id = 'demoBadge';
-  b.textContent = 'DEMO DATA';
+  b.textContent = label;
   b.style.cssText = 'margin-left:12px;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;'+
     'color:var(--amber);border:1px solid var(--amber);padding:3px 8px;border-radius:999px';
   document.querySelector('.livePill').after(b);
@@ -1245,6 +1249,8 @@ function paintStrip(){
   ];
   if (session) parts.push('<span><time>DECISION</time>'+String(session.decision||'').replace('_',' ').toUpperCase()+
     ' · '+pct((session.confidence||0)*100)+'</span>');
+  if (typeof newsItems !== 'undefined' && newsItems.length)
+    newsItems.slice(0,4).forEach(n => parts.push('<span><time>'+(n.datetime||'').slice(5,10)+'</time>'+n.headline+'</span>'));
   newsTrack.innerHTML = parts.join('') + parts.join('');
 }
 paintStrip();
