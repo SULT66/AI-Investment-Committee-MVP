@@ -287,7 +287,7 @@ let lang = 'en';
 try { const s = localStorage.getItem('aic-lang'); if (s && LOCALES[s]) lang = s; } catch(e){}
 
 const T = {
-  en:{inSession:'Session in progress',underReview:'Under review',yourLimit:'Your policy limit',yourDecision:'This is research. The decision is yours.',researchView:'COMMITTEE RESEARCH VIEW',maxExposure:'Max exposure',fit:'Portfolio fit',why:'Why',whyNot:'Why not',dissent:'Dissent',noDissent:'No dissent recorded.',policy:'Investment policy',binding:'Binding constraint',maxSingle:'Max single position',maxSector:'Max sector',minCash:'Min cash reserve',maxDd:'Max drawdown',horizon:'Horizon',permitted:'Policy-permitted maximum',checks:'Policy checks',dataPanel:'Data & provenance',price:'Price',lastTrade:'Last trade',checked:'Checked at',dataOk:'Data sufficient',confHow:'How confidence is calculated',deferred:'DECISION DEFERRED',deferredNote:'Insufficient current data to decide responsibly.',notAdvice:'AI-generated research and decision support · not investment advice · you decide',noLive:'MARKET DATA UNAVAILABLE',noLiveBadge:'NO LIVE DATA',noQuote:'no quote',readsFigures:'The figures on the board:',live:'LIVE',voiceOn:'🔊 Voice on',voiceOff:'🔇 Voice off',floor:'Request the floor',ask:'Ask',
+  en:{crossOpen:'Before we vote, I want the strongest objection answered.',crossQuestion:'Respond directly to this objection raised in committee:',inSession:'Session in progress',underReview:'Under review',yourLimit:'Your policy limit',yourDecision:'This is research. The decision is yours.',researchView:'COMMITTEE RESEARCH VIEW',maxExposure:'Max exposure',fit:'Portfolio fit',why:'Why',whyNot:'Why not',dissent:'Dissent',noDissent:'No dissent recorded.',policy:'Investment policy',binding:'Binding constraint',maxSingle:'Max single position',maxSector:'Max sector',minCash:'Min cash reserve',maxDd:'Max drawdown',horizon:'Horizon',permitted:'Policy-permitted maximum',checks:'Policy checks',dataPanel:'Data & provenance',price:'Price',lastTrade:'Last trade',checked:'Checked at',dataOk:'Data sufficient',confHow:'How confidence is calculated',deferred:'DECISION DEFERRED',deferredNote:'Insufficient current data to decide responsibly.',notAdvice:'AI-generated research and decision support · not investment advice · you decide',noLive:'MARKET DATA UNAVAILABLE',noLiveBadge:'NO LIVE DATA',noQuote:'no quote',readsFigures:'The figures on the board:',live:'LIVE',voiceOn:'🔊 Voice on',voiceOff:'🔇 Voice off',floor:'Request the floor',ask:'Ask',
       askPh:'Ask the committee…',newSession:'New session',ticker:'LIVE MARKET TICKER · FINNHUB',session:'SESSION',
       decision:'COMMITTEE DECISION',conf:'Confidence',amount:'Amount',alloc:'Allocation',votes:'Votes',
       pVotes:'Committee votes',pRisk:'Key risks',pMarket:'Market data',member:'Member',vote:'Vote',
@@ -299,7 +299,7 @@ const T = {
       errVoice:'Voice is unavailable right now.',errAsk:'The committee could not answer. Try again.',
       chairOpen:'The floor is open on the proposal.',chairClose:'That concludes the debate. The committee has decided.',
       aiVoice:'Voices are AI-generated.'},
-  ru:{inSession:'Идёт заседание',underReview:'На рассмотрении',yourLimit:'Ваш лимит по политике',yourDecision:'Это исследование. Решение принимаете вы.',researchView:'ИССЛЕДОВАНИЕ КОМИТЕТА',maxExposure:'Макс. вложение',fit:'Соответствие портфелю',why:'За',whyNot:'Против',dissent:'Особое мнение',noDissent:'Особых мнений не заявлено.',policy:'Инвестиционная политика',binding:'Ограничивающее условие',maxSingle:'Макс. одна позиция',maxSector:'Макс. сектор',minCash:'Мин. резерв наличности',maxDd:'Макс. просадка',horizon:'Горизонт',permitted:'Разрешено политикой',checks:'Проверки политики',dataPanel:'Данные и источники',price:'Цена',lastTrade:'Последняя сделка',checked:'Проверено',dataOk:'Данных достаточно',confHow:'Как считается уверенность',deferred:'РЕШЕНИЕ ОТЛОЖЕНО',deferredNote:'Недостаточно актуальных данных для ответственного решения.',notAdvice:'Исследование и поддержка решений · не инвестиционная рекомендация · решение за вами',noLive:'РЫНОЧНЫЕ ДАННЫЕ НЕДОСТУПНЫ',noLiveBadge:'НЕТ ЖИВЫХ ДАННЫХ',noQuote:'нет котировки',readsFigures:'Цифры на экране:',live:'ЭФИР',voiceOn:'🔊 Голос вкл',voiceOff:'🔇 Голос выкл',floor:'Взять слово',ask:'Спросить',
+  ru:{crossOpen:'Прежде чем голосовать, я хочу услышать ответ на самое сильное возражение.',crossQuestion:'Ответьте прямо на возражение, прозвучавшее на заседании:',inSession:'Идёт заседание',underReview:'На рассмотрении',yourLimit:'Ваш лимит по политике',yourDecision:'Это исследование. Решение принимаете вы.',researchView:'ИССЛЕДОВАНИЕ КОМИТЕТА',maxExposure:'Макс. вложение',fit:'Соответствие портфелю',why:'За',whyNot:'Против',dissent:'Особое мнение',noDissent:'Особых мнений не заявлено.',policy:'Инвестиционная политика',binding:'Ограничивающее условие',maxSingle:'Макс. одна позиция',maxSector:'Макс. сектор',minCash:'Мин. резерв наличности',maxDd:'Макс. просадка',horizon:'Горизонт',permitted:'Разрешено политикой',checks:'Проверки политики',dataPanel:'Данные и источники',price:'Цена',lastTrade:'Последняя сделка',checked:'Проверено',dataOk:'Данных достаточно',confHow:'Как считается уверенность',deferred:'РЕШЕНИЕ ОТЛОЖЕНО',deferredNote:'Недостаточно актуальных данных для ответственного решения.',notAdvice:'Исследование и поддержка решений · не инвестиционная рекомендация · решение за вами',noLive:'РЫНОЧНЫЕ ДАННЫЕ НЕДОСТУПНЫ',noLiveBadge:'НЕТ ЖИВЫХ ДАННЫХ',noQuote:'нет котировки',readsFigures:'Цифры на экране:',live:'ЭФИР',voiceOn:'🔊 Голос вкл',voiceOff:'🔇 Голос выкл',floor:'Взять слово',ask:'Спросить',
       askPh:'Задайте вопрос комитету…',newSession:'Новое заседание',ticker:'БИРЖЕВАЯ СТРОКА · FINNHUB',session:'ЗАСЕДАНИЕ',
       decision:'РЕШЕНИЕ КОМИТЕТА',conf:'Уверенность',amount:'Сумма',alloc:'Доля портфеля',votes:'Голоса',
       pVotes:'Голоса комитета',pRisk:'Ключевые риски',pMarket:'Рыночные данные',member:'Участник',vote:'Голос',
@@ -311,7 +311,7 @@ const T = {
       errVoice:'Голос сейчас недоступен.',errAsk:'Комитет не смог ответить. Попробуйте ещё раз.',
       chairOpen:'Заседание объявляю открытым.',chairClose:'Обсуждение завершено. Комитет принял решение.',
       aiVoice:'Голоса синтезированы ИИ.'},
-  es:{inSession:'Sesión en curso',underReview:'En revisión',yourLimit:'Su límite de política',yourDecision:'Esto es investigación. La decisión es suya.',researchView:'ANÁLISIS DEL COMITÉ',maxExposure:'Exposición máx.',fit:'Encaje en cartera',why:'A favor',whyNot:'En contra',dissent:'Voto particular',noDissent:'Sin votos particulares.',policy:'Política de inversión',binding:'Restricción vinculante',maxSingle:'Posición máx.',maxSector:'Sector máx.',minCash:'Reserva mín. de efectivo',maxDd:'Caída máx.',horizon:'Horizonte',permitted:'Máximo permitido',checks:'Comprobaciones',dataPanel:'Datos y procedencia',price:'Precio',lastTrade:'Última operación',checked:'Verificado',dataOk:'Datos suficientes',confHow:'Cómo se calcula la confianza',deferred:'DECISIÓN APLAZADA',deferredNote:'Datos actuales insuficientes para decidir con responsabilidad.',notAdvice:'Investigación y apoyo a la decisión. No es asesoramiento financiero.',noLive:'DATOS DE MERCADO NO DISPONIBLES',noLiveBadge:'SIN DATOS EN VIVO',noQuote:'sin cotización',readsFigures:'Las cifras en pantalla:',live:'EN VIVO',voiceOn:'🔊 Voz activada',voiceOff:'🔇 Voz desactivada',floor:'Pedir la palabra',ask:'Preguntar',
+  es:{crossOpen:'Antes de votar, quiero una respuesta a la objeción más fuerte.',crossQuestion:'Responda directamente a esta objeción planteada en el comité:',inSession:'Sesión en curso',underReview:'En revisión',yourLimit:'Su límite de política',yourDecision:'Esto es investigación. La decisión es suya.',researchView:'ANÁLISIS DEL COMITÉ',maxExposure:'Exposición máx.',fit:'Encaje en cartera',why:'A favor',whyNot:'En contra',dissent:'Voto particular',noDissent:'Sin votos particulares.',policy:'Política de inversión',binding:'Restricción vinculante',maxSingle:'Posición máx.',maxSector:'Sector máx.',minCash:'Reserva mín. de efectivo',maxDd:'Caída máx.',horizon:'Horizonte',permitted:'Máximo permitido',checks:'Comprobaciones',dataPanel:'Datos y procedencia',price:'Precio',lastTrade:'Última operación',checked:'Verificado',dataOk:'Datos suficientes',confHow:'Cómo se calcula la confianza',deferred:'DECISIÓN APLAZADA',deferredNote:'Datos actuales insuficientes para decidir con responsabilidad.',notAdvice:'Investigación y apoyo a la decisión. No es asesoramiento financiero.',noLive:'DATOS DE MERCADO NO DISPONIBLES',noLiveBadge:'SIN DATOS EN VIVO',noQuote:'sin cotización',readsFigures:'Las cifras en pantalla:',live:'EN VIVO',voiceOn:'🔊 Voz activada',voiceOff:'🔇 Voz desactivada',floor:'Pedir la palabra',ask:'Preguntar',
       askPh:'Pregunte al comité…',newSession:'Nueva sesión',ticker:'CINTA DE MERCADO · FINNHUB',session:'SESIÓN',
       decision:'DECISIÓN DEL COMITÉ',conf:'Confianza',amount:'Importe',alloc:'Asignación',votes:'Votos',
       pVotes:'Votos del comité',pRisk:'Riesgos clave',pMarket:'Datos de mercado',member:'Miembro',vote:'Voto',
@@ -635,12 +635,16 @@ async function unlockAudio(){
 }
 function stopVoice(){
   voiceSeq++;
+  speechBusy = false;
   if (srcNode){ try{ srcNode.onended = null; srcNode.stop(); }catch(e){} srcNode = null; }
   people.forEach(p => p.talking = false);
   amplitude = 0;
 }
+let speechBusy = false;
+
 async function speak(memberIdx, text){
   if (!voiceOn || !audioCtx || !text) return;
+  speechBusy = true;
   const m = MEMBERS[memberIdx];
   const token = ++voiceSeq;
   if (srcNode){ try{ srcNode.onended = null; srcNode.stop(); }catch(e){} srcNode = null; }
@@ -661,13 +665,14 @@ async function speak(memberIdx, text){
     } catch(err){
       console.error('Voice failed', err);
       note(t().errVoice, true);
+      speechBusy = false;
       return;
     }
   }
-  if (token !== voiceSeq) return;
+  if (token !== voiceSeq){ speechBusy = false; return; }
   const s = audioCtx.createBufferSource();
   s.buffer = buf; s.connect(analyser);
-  s.onended = () => { if (srcNode === s){ srcNode = null; people.forEach(p=>p.talking=false); amplitude = 0; } };
+  s.onended = () => { if (srcNode === s){ srcNode = null; people.forEach(p=>p.talking=false); amplitude = 0; speechBusy = false; } };
   srcNode = s; people[memberIdx].talking = true;
   s.start();
 }
@@ -688,6 +693,25 @@ function paintVoiceBtn(){
   voiceBtn.textContent = voiceOn ? t().voiceOn : t().voiceOff;
   voiceBtn.style.borderColor = voiceOn ? 'rgba(34,197,94,.5)' : '';
   voiceBtn.style.color = voiceOn ? 'var(--up)' : '';
+}
+
+/* Hold the current shot until the member has finished speaking.
+   Cutting away mid-sentence is the single most obvious tell that a scene is faked. */
+function afterTurn(text, done){
+  const started = Date.now();
+  const minMs = Math.min(9000, 3000 + (text || '').length * 28);   /* readable even in silence */
+  const maxMs = 60000;                                              /* never hang forever */
+  const tick = () => {
+    if (sessionState !== 'debate' && sessionState !== 'qa') return;
+    const elapsed = Date.now() - started;
+    const stillSpeaking = voiceOn && speechBusy;
+    if ((!stillSpeaking && elapsed >= minMs) || elapsed >= maxMs){
+      later(done, 900);                                             /* a beat before the cut */
+      return;
+    }
+    later(tick, 250);
+  };
+  tick();
 }
 
 /* ============================================================
@@ -736,7 +760,7 @@ const pct = n => (Number(n)||0).toFixed(0) + '%';
 
 /* ---------- demo fallback: used only when the API is unreachable
    (e.g. opening this file outside the Next.js app). Clearly labelled. ---------- */
-let demoMode = false, newsItems = [];
+let demoMode = false, newsItems = [], lastApiError = '';
 function demoSession(){
   return {
     decision:'buy_partial', confidence:0.67,
@@ -801,7 +825,12 @@ async function runSession(){
         language: lang
       })
     });
-    if (!r.ok) throw new Error('sessions ' + r.status);
+    if (!r.ok){
+      let detail = 'HTTP ' + r.status;
+      try { const body = await r.json(); detail = body.error || detail; } catch(e){}
+      lastApiError = PROPOSAL.ticker + ' — ' + detail;
+      throw new Error('sessions ' + r.status + ' ' + detail);
+    }
     session = await r.json();
     market = session.marketData || null;
     if (session.analysisMode === 'fallback') modeBadge('TEMPLATE ANALYSIS');
@@ -877,7 +906,7 @@ function runDebate(){
   let step = 0;
   const advance = () => {
     if (sessionState !== 'debate') return;
-    if (step >= script.length){ showVerdict(); return; }
+    if (step >= script.length){ crossExamine(); return; }
     const s2 = script[step++];
     const m = MEMBERS[s2.seat];
     showLine(s2.seat, m.name, m.role, s2.text);
@@ -886,9 +915,63 @@ function runDebate(){
       drawScreen();
     }
     history.push({ role: m.role, text: s2.text });
-    later(advance, Math.min(9000, 4200 + (s2.text || '').length * 30));
+    afterTurn(s2.text, advance);
   };
   advance();
+}
+
+/* ------------------------------------------------------------
+   Second round: the chair puts the strongest objection back to the
+   committee. Uses the real follow-up endpoint, so this is genuine
+   argument rather than scripted filler.
+   ------------------------------------------------------------ */
+async function crossExamine(){
+  if (sessionState !== 'debate') return;
+  if (demoMode || !session || !Array.isArray(session.opinions) || session.opinions.length < 3){
+    showVerdict(); return;
+  }
+  const objection = session.opinions.find(o => o.memberId === 'redteam')
+                 || session.opinions.find(o => o.memberId === 'risk');
+  if (!objection){ showVerdict(); return; }
+
+  showLine(CHAIR, MEMBERS[CHAIR].name, MEMBERS[CHAIR].role, t().crossOpen);
+  await new Promise(r => afterTurn(t().crossOpen, r));
+  if (sessionState !== 'debate') return;
+
+  let turns = [];
+  try {
+    const r = await fetch('/api/committee/follow-up', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        question: t().crossQuestion + ' \u00ab' + objection.thesis + '\u00bb',
+        language: lang,
+        proposal: {
+          ticker: PROPOSAL.ticker, amount: PROPOSAL.amount, portfolioValue: PROPOSAL.portfolioValue,
+          currentSectorExposure: PROPOSAL.currentSectorExposure,
+          riskTolerance: PROPOSAL.riskTolerance, horizonYears: PROPOSAL.horizonYears
+        },
+        recommendation: session,
+        history: history.slice(-12)
+      })
+    });
+    if (r.ok){
+      const data = await r.json();
+      turns = Array.isArray(data.turns) ? data.turns : [];
+    }
+  } catch(err){ console.warn('Cross-examination unavailable', err); }
+
+  let k = 0;
+  const playRebuttal = () => {
+    if (sessionState !== 'debate') return;
+    if (k >= turns.length){ showVerdict(); return; }
+    const turn = turns[k++];
+    const i = byApi(turn.member);
+    if (i < 0){ playRebuttal(); return; }
+    showLine(i, MEMBERS[i].name, turn.role || MEMBERS[i].role, turn.text);
+    history.push({ role: turn.role || MEMBERS[i].role, text: turn.text });
+    afterTurn(turn.text, playRebuttal);
+  };
+  playRebuttal();
 }
 
 /* ============================================================
@@ -1082,7 +1165,7 @@ async function askCommittee(){
     if (i < 0){ playTurn(); return; }
     showLine(i, MEMBERS[i].name, turn.role || MEMBERS[i].role, turn.text);
     history.push({ role: turn.role || turn.member, text: turn.text });
-    later(playTurn, Math.min(11000, 3200 + (turn.text || '').length * 42));
+    afterTurn(turn.text, playTurn);
   };
   playTurn();
 }
