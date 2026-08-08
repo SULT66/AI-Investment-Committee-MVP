@@ -425,15 +425,17 @@ bezel.position.set(0,3.55,-5.23); scene.add(bezel);
    Character Creator / Mixamo exports work too.
    ============================================================ */
 const AVATAR_URLS = {
-  fundamental: '',
-  market:      '',
-  quant:       '',
-  chairman:    '',
-  risk:        '',
-  macro:       '',
-  portfolio:   ''
+  fundamental: '',   /* David Harper   */
+  valuation:   '',   /* Sarah Chen     */
+  portfolio:   '',   /* Marcus Reed    */
+  chairman:    '',   /* James Wilson   */
+  risk:        '',   /* Elena Petrova  */
+  macro:       '',   /* Victor Lee     */
+  sentiment:   '',   /* Alex Morgan    */
+  redteam:     ''    /* Nina Alvarez   */
 };
-/* a single ?avatars=<base64 json> in the URL can override the map, for quick tests */
+
+/* Optional override for quick tests: ?avatars=<base64 json> */
 try {
   const raw = new URLSearchParams(location.search).get('avatars');
   if (raw) Object.assign(AVATAR_URLS, JSON.parse(atob(raw)));
@@ -563,7 +565,30 @@ function attachAvatar(seatIndex, url){
   });
 }
 
-MEMBERS.forEach((m, i) => { if (AVATAR_URLS[m.id]) attachAvatar(i, AVATAR_URLS[m.id]); });
+/* Avatar discovery, in order of preference:
+   1. an explicit URL in AVATAR_URLS above
+   2. public/avatars/manifest.json  →  { "chairman": "/avatars/wilson.glb", ... }
+   3. public/avatars/<memberId>.glb — just drop the files in, no code to edit
+   Seats with no model keep the built-in figure. */
+(async function discoverAvatars(){
+  let manifest = {};
+  try {
+    const r = await fetch('/avatars/manifest.json', { cache: 'no-store' });
+    if (r.ok) manifest = await r.json();
+  } catch(e){ /* no manifest is fine */ }
+
+  await Promise.all(MEMBERS.map(async (m, i) => {
+    let url = AVATAR_URLS[m.id] || manifest[m.id] || '';
+    if (!url){
+      const guess = '/avatars/' + m.id + '.glb';
+      try {
+        const head = await fetch(guess, { method: 'HEAD' });
+        if (head.ok) url = guess;
+      } catch(e){ /* not there */ }
+    }
+    if (url) attachAvatar(i, url);
+  }));
+})();
 
 /* ============================================================
    Camera direction
