@@ -33,7 +33,7 @@
 /* ---------- speaker ---------- */
 .deskSpeaker{min-width:0}
 .speakerFrame{
-  position:relative; aspect-ratio:16/10; background:#070C14; border:1px solid var(--line);
+  position:relative; aspect-ratio:4/3; background:#070C14; border:1px solid var(--line);
   overflow:hidden; display:grid; place-items:center;
 }
 .portrait{width:100%; height:100%; object-fit:cover; display:block}
@@ -57,7 +57,9 @@
 .speakerBadge .dot{width:6px;height:6px;border-radius:50%;background:var(--up);animation:pulse 1.6s infinite}
 @keyframes pulse{50%{opacity:.35}}
 @media(prefers-reduced-motion:reduce){.speakerBadge .dot{animation:none}}
-.speakerIdle{position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); font-size:13.5px}
+.speakerIdle{position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); font-size:13.5px;
+  text-transform:capitalize}
+.speakerIdle span{display:block; text-align:center; max-width:70%}
 
 .speakerQuote{
   margin:10px 0 0; background:var(--panel); border:1px solid var(--line);
@@ -79,6 +81,9 @@
   flex:0 0 auto; width:104px; background:var(--panel); border:1px solid var(--line);
   padding:9px 8px; display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center;
 }
+.committeeRail li[role="button"]{cursor:pointer}
+.committeeRail li[role="button"]:hover{border-color:#2E4A6B}
+.committeeRail li[role="button"]:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .committeeRail li.on{border-color:var(--accent); background:rgba(77,163,255,.09)}
 .committeeRail li.done{opacity:.95}
 .committeeRail li.missed{opacity:.5}
@@ -193,11 +198,13 @@
 
 /* ---------- desktop: full Live Investment Desk ---------- */
 @media(min-width:1200px){
-  .deskBody{grid-template-columns:minmax(0,2fr) minmax(280px,1fr) minmax(300px,1fr); align-items:start}
+  .deskBody{grid-template-columns:minmax(0,1.9fr) minmax(290px,1fr) minmax(310px,1fr); align-items:start}
+  .deskDecision{position:sticky; top:74px}
   .deskSpeaker{grid-column:1/2}
   .deskEvidence{grid-column:2/3}
   .deskDecision{grid-column:3/4}
   .committeeRail{flex-wrap:wrap}
   .committeeRail li{width:calc(25% - 6px)}
   .speakerQuote{font-size:15px}
+  .speakerFrame{aspect-ratio:16/10}
 }

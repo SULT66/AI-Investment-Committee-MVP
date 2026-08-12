@@ -196,11 +196,24 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
     () => agents.find((a) => a.agentKey === activeKey) ?? null,
     [agents, activeKey]
   );
+
+  // Opening a finished session directly (a shared link, a reload) must not show an
+  // empty stage: fall back to whoever spoke last, chairman first.
+  useEffect(() => {
+    if (activeKey || !snapshot) return;
+    const chair = snapshot.agents.find((a) => a.agentKey === "chairman" && a.statement);
+    const lastSpoken = [...snapshot.agents].reverse().find((a) => a.statement);
+    const fallback = chair ?? lastSpoken;
+    if (fallback) setActiveKey(fallback.agentKey);
+  }, [snapshot, activeKey]);
   const activeLine = useMemo(() => {
     const spoken = [...transcript].reverse().find((t) => t.key === activeKey);
     return spoken?.text ?? active?.statement ?? "";
   }, [transcript, activeKey, active]);
 
+  const sessionOver = ["COMPLETED", "FAILED", "CANCELLED", "PARTIAL_DATA", "SESSION_TIMEOUT"].includes(
+    snapshot?.status ?? ""
+  );
   const md = snapshot?.marketData ?? null;
   const tally = agents.reduce(
     (acc, a) => {
@@ -220,8 +233,14 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
       {/* ---- header ---- */}
       <header className="deskHeader">
         <span className="deskLogo">AIC</span>
-        <span className={`deskLive ${connection}`}>
-          {connection === "live" ? "● LIVE" : connection === "closed" ? "● ENDED" : "● CONNECTING"}
+        <span className={`deskLive ${sessionOver ? "closed" : connection}`}>
+          {sessionOver
+            ? "● SESSION ENDED"
+            : connection === "live"
+              ? "● LIVE"
+              : connection === "error"
+                ? "● RECONNECTING"
+                : "● CONNECTING"}
         </span>
         <div className="deskAsset">
           <small>Reviewing</small>
@@ -249,11 +268,17 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
             )}
             {!activeKey && (
               <div className="speakerIdle">
-                {snapshot?.status === "RESEARCHING"
-                  ? "Committee is researching…"
-                  : snapshot?.status
-                    ? `Session ${snapshot.status.toLowerCase().replace(/_/g, " ")}`
-                    : "Connecting…"}
+                <span>
+                  {snapshot?.status === "RESEARCHING"
+                    ? "Committee is researching…"
+                    : snapshot?.status === "CHAIRMAN_SYNTHESIS"
+                      ? "Chairman is preparing the synthesis…"
+                      : snapshot?.status === "COMPLETED"
+                        ? "Session complete"
+                        : snapshot?.status
+                          ? snapshot.status.toLowerCase().replace(/_/g, " ")
+                          : "Connecting…"}
+                </span>
               </div>
             )}
           </div>
@@ -273,11 +298,18 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
             </blockquote>
           )}
 
-          {/* committee progress: horizontal on mobile, rail on desktop */}
+          {/* committee progress: horizontal on mobile, rail on desktop.
+              Clicking a completed member replays their statement on the stage. */}
           <ul className="committeeRail">
             {agents.map((a) => (
               <li
                 key={a.agentKey}
+                role={a.statement ? "button" : undefined}
+                tabIndex={a.statement ? 0 : undefined}
+                onClick={() => { if (a.statement) setActiveKey(a.agentKey); }}
+                onKeyDown={(e) => {
+                  if (a.statement && (e.key === "Enter" || e.key === " ")) setActiveKey(a.agentKey);
+                }}
                 className={[
                   a.agentKey === activeKey ? "on" : "",
                   a.status === "completed" ? "done" : "",
@@ -359,7 +391,9 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
                 <span className="down"><b>{tally.avoid}</b>AVOID</span>
               </div>
               <p className="pendingNote small">
-                The final decision is released only after the Chairman completes the synthesis.
+                {sessionOver
+                  ? "The session ended before the Chairman issued a decision. The individual opinions above stand on their own."
+                  : "The final decision is released only after the Chairman completes the synthesis."}
               </p>
             </div>
           ) : (
