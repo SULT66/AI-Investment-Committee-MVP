@@ -126,10 +126,13 @@ export function sizePosition(
     allowsAmount: Math.max(0, singleCap)
   });
 
-  const sectorCap = (policy.maxSectorPercent / 100) * pv - profile.sectorExposureValue;
+  const sectorKnown = !unknownInputs.includes("sectorExposureValue");
   workings.push({
     constraint: `Sector limit ${policy.maxSectorPercent}%`,
-    allowsAmount: Math.max(0, sectorCap)
+    allowsAmount: sectorKnown
+      ? Math.max(0, (policy.maxSectorPercent / 100) * pv - profile.sectorExposureValue)
+      : Infinity,
+    assessed: sectorKnown
   });
 
   // A constraint may only bind when its inputs are real. Assuming the client's

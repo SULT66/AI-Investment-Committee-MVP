@@ -15,7 +15,10 @@ const schema = z.object({
   ticker: z.string().trim().min(1).max(32),
   amount: z.number().positive().default(5000),
   portfolioValue: z.number().positive().default(120000),
-  currentSectorExposure: z.number().min(0).max(100).default(30),
+  /* No default: an unsupplied sector exposure is unknown, not zero and not
+     "at the cap". Defaulting it to 30 collided with the 30% policy cap and made
+     every session hit a permitted maximum of 0%. */
+  currentSectorExposure: z.number().min(0).max(100).optional(),
   riskTolerance: z.enum(["low", "moderate", "high"]).default("moderate"),
   horizonYears: z.number().int().min(1).max(50).default(5),
   language: z.enum(["en", "ru", "es", "fr", "de", "it", "pt", "ar", "tr", "az"]).default("en")

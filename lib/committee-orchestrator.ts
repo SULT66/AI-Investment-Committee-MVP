@@ -24,7 +24,7 @@ export type SessionInput = {
   ticker: string;
   amount: number;
   portfolioValue: number;
-  currentSectorExposure: number;
+  currentSectorExposure?: number;
   riskTolerance: "low" | "moderate" | "high";
   horizonYears: number;
   language: string;
@@ -186,7 +186,7 @@ export async function runCommitteeJob(sessionId: string, input: SessionInput): P
       horizonYears: input.horizonYears,
       riskTolerance: input.riskTolerance,
       investableCapital: input.amount,
-      sectorExposureValue: (input.currentSectorExposure / 100) * input.portfolioValue,
+      sectorExposureValue: ((input.currentSectorExposure ?? 0) / 100) * input.portfolioValue,
       existingPositionValue: 0,
       cashReserveValue: input.amount,
       goal: "growth",
@@ -207,6 +207,7 @@ export async function runCommitteeJob(sessionId: string, input: SessionInput): P
       "liquidityNeedWithin12MonthsValue",
       "existingPositionValue"
     ];
+    if (input.currentSectorExposure === undefined) unknownInputs.push("sectorExposureValue");
     const policy = buildPolicy(profile);
     const sizing = sizePosition(profile, policy, input.amount, market, unknownInputs);
     const checks = runPolicyChecks(profile, policy, market, sizing);
@@ -242,7 +243,7 @@ Write every string in ${languageName}. confidence is 0 to 1.`.trim();
     const context = `MARKET DATA:\n${marketBlock(market)}\n\nRECENT NEWS:\n${newsBlock(news)}\n
 PROPOSAL: reviewing ${market.symbol}, position under consideration ${(
       (input.amount / input.portfolioValue) * 100
-    ).toFixed(2)}% of portfolio, sector exposure ${input.currentSectorExposure}%, risk ${
+    ).toFixed(2)}% of portfolio, sector exposure ${input.currentSectorExposure !== undefined ? input.currentSectorExposure + "%" : "not supplied by the client"}, risk ${
       input.riskTolerance
     }, horizon ${input.horizonYears}y.
 POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxSectorPercent}%, permitted max ${sizing.maxPositionPercent}% (binding: ${sizing.bindingConstraint}).`;
