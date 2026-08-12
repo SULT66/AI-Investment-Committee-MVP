@@ -94,6 +94,7 @@ export type SessionSnapshot = {
   sizing: unknown;
   policyChecks: unknown;
   dataSufficiency: unknown;
+  assumedProfileFields?: string[];
   error?: { code: string; message: string };
 };
 

@@ -156,7 +156,9 @@ async function callModel(
 }
 
 export async function runCommitteeJob(sessionId: string, input: SessionInput): Promise<void> {
-  const agentTimeout = timeoutFromEnv("AIC_AGENT_TIMEOUT_MS", 45_000, 10_000, 90_000);
+  // The committee runs as a background job, so this budget no longer competes with
+  // the gateway. It only needs to be short enough that a hung call is cut loose.
+  const agentTimeout = timeoutFromEnv("AIC_AGENT_TIMEOUT_MS", 150_000, 20_000, 240_000);
   const languageName = LANGUAGE_NAMES[input.language] ?? "English";
 
   try {
@@ -198,8 +200,15 @@ export async function runCommitteeJob(sessionId: string, input: SessionInput): P
       countryOfResidence: ""
     };
 
+    // Only the sector figure came from the user; the rest are defaults, and a
+    // default must never masquerade as a binding client constraint.
+    const unknownInputs = [
+      "cashReserveValue",
+      "liquidityNeedWithin12MonthsValue",
+      "existingPositionValue"
+    ];
     const policy = buildPolicy(profile);
-    const sizing = sizePosition(profile, policy, input.amount, market);
+    const sizing = sizePosition(profile, policy, input.amount, market, unknownInputs);
     const checks = runPolicyChecks(profile, policy, market, sizing);
     const sufficiency = checkDataSufficiency(market, news);
 
@@ -209,6 +218,7 @@ export async function runCommitteeJob(sessionId: string, input: SessionInput): P
       news,
       policy,
       sizing,
+      assumedProfileFields: unknownInputs,
       policyChecks: checks,
       dataSufficiency: sufficiency
     });
@@ -226,7 +236,8 @@ state a currency amount. Discuss size only as a percentage of the portfolio, nev
 policy-permitted maximum of ${sizing.maxPositionPercent}%.
 
 Your thesis is 1-2 sentences, spoken aloud in a meeting, first person, citing at least one specific
-number or dated event. Write every string in ${languageName}. confidence is 0 to 1.`.trim();
+number or dated event. Keep each risk to one short line — this is a spoken committee, not a report.
+Write every string in ${languageName}. confidence is 0 to 1.`.trim();
 
     const context = `MARKET DATA:\n${marketBlock(market)}\n\nRECENT NEWS:\n${newsBlock(news)}\n
 PROPOSAL: reviewing ${market.symbol}, position under consideration ${(
@@ -308,6 +319,14 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
     const opinions = results
       .filter((r): r is Extract<Settled, { status: "fulfilled" }> => r.status === "fulfilled")
       .map((r) => r.value);
+
+    const failed = SPECIALISTS.length - opinions.length;
+    if (failed > 0) {
+      emit(sessionId, "session.research.progress", {
+        stage: "partial_committee",
+        message: `${failed} of ${SPECIALISTS.length} agents did not report in time.`
+      });
+    }
 
     const quorum = Number(process.env.AIC_MIN_QUORUM ?? 3);
     if (opinions.length < quorum) {

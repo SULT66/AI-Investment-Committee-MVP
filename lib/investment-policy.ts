@@ -59,7 +59,7 @@ export type PositionSizing = {
   maxPositionPercent: number;
   bindingConstraint: string;
   /** every limit considered, so the number can be audited */
-  workings: Array<{ constraint: string; allowsAmount: number }>;
+  workings: Array<{ constraint: string; allowsAmount: number; assessed: boolean }>;
 };
 
 export type DataSufficiency = {
@@ -113,10 +113,12 @@ export function sizePosition(
   profile: InvestorProfile,
   policy: PolicyStatement,
   requestedAmount: number,
-  market: MarketSnapshot | null
+  market: MarketSnapshot | null,
+  /** constraint ids whose inputs were assumed rather than supplied by the user */
+  unknownInputs: string[] = []
 ): PositionSizing {
   const pv = Math.max(profile.portfolioValue, 1);
-  const workings: Array<{ constraint: string; allowsAmount: number }> = [];
+  const workings: Array<{ constraint: string; allowsAmount: number; assessed?: boolean }> = [];
 
   const singleCap = (policy.maxSinglePositionPercent / 100) * pv - profile.existingPositionValue;
   workings.push({
@@ -130,17 +132,24 @@ export function sizePosition(
     allowsAmount: Math.max(0, sectorCap)
   });
 
+  // A constraint may only bind when its inputs are real. Assuming the client's
+  // cash reserve and then blocking the whole position on that assumption would be
+  // a fabricated limit, so unknown inputs are recorded but not enforced.
+  const cashKnown = !unknownInputs.includes("cashReserveValue");
   const cashFloor = (policy.minCashReservePercent / 100) * pv;
-  const cashCap = profile.cashReserveValue - cashFloor;
   workings.push({
     constraint: `Cash reserve floor ${policy.minCashReservePercent}%`,
-    allowsAmount: Math.max(0, cashCap)
+    allowsAmount: cashKnown ? Math.max(0, profile.cashReserveValue - cashFloor) : Infinity,
+    assessed: cashKnown
   });
 
-  const liquidityCap = profile.cashReserveValue - profile.liquidityNeedWithin12MonthsValue;
+  const liquidityKnown = !unknownInputs.includes("liquidityNeedWithin12MonthsValue") && cashKnown;
   workings.push({
     constraint: "12-month liquidity need",
-    allowsAmount: Math.max(0, liquidityCap)
+    allowsAmount: liquidityKnown
+      ? Math.max(0, profile.cashReserveValue - profile.liquidityNeedWithin12MonthsValue)
+      : Infinity,
+    assessed: liquidityKnown
   });
 
   workings.push({ constraint: "Capital available to invest", allowsAmount: Math.max(0, profile.investableCapital) });
@@ -156,13 +165,17 @@ export function sizePosition(
   }
 
   const binding = workings.reduce((min, w) => (w.allowsAmount < min.allowsAmount ? w : min), workings[0]);
-  const maxInvestableAmount = Math.max(0, Math.floor(binding.allowsAmount));
+  const maxInvestableAmount = Math.max(0, Math.floor(Math.min(binding.allowsAmount, requestedAmount)));
 
   return {
     maxInvestableAmount,
     maxPositionPercent: Math.round((maxInvestableAmount / pv) * 1000) / 10,
     bindingConstraint: binding.constraint,
-    workings: workings.map((w) => ({ ...w, allowsAmount: Math.max(0, Math.floor(w.allowsAmount)) }))
+    workings: workings.map((w) => ({
+      constraint: w.constraint,
+      allowsAmount: Number.isFinite(w.allowsAmount) ? Math.max(0, Math.floor(w.allowsAmount)) : -1,
+      assessed: w.assessed !== false
+    }))
   };
 }
 
