@@ -26,33 +26,38 @@ export function SessionStarter() {
 
   const [amount, setAmount] = useState("5000");
   const [portfolioValue, setPortfolioValue] = useState("120000");
-  const [sector, setSector] = useState("30");
+  const [sector, setSector] = useState("");
   const [horizon, setHorizon] = useState("5");
   const [risk, setRisk] = useState<"low" | "moderate" | "high">("moderate");
 
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2 || selected) {
-      setMatches([]);
       return;
     }
+    const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setSearching(true);
       setError("");
       try {
-        const res = await fetch(`/api/symbol-search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/symbol-search?q=${encodeURIComponent(q)}`, { signal: controller.signal });
         if (!res.ok) throw new Error("search unavailable");
         const data = (await res.json()) as { results?: SymbolMatch[] };
         setMatches(data.results ?? []);
         if (!data.results?.length) setError(`Nothing found for “${q}”.`);
-      } catch {
-        setError("Instrument search is unavailable right now.");
-        setMatches([]);
+      } catch (searchError) {
+        if (!(searchError instanceof DOMException && searchError.name === "AbortError")) {
+          setError("Instrument search is unavailable right now.");
+          setMatches([]);
+        }
       } finally {
-        setSearching(false);
+        if (!controller.signal.aborted) setSearching(false);
       }
     }, 300);
-    return () => window.clearTimeout(timer);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
   }, [query, selected]);
 
   function choose(match: SymbolMatch) {
@@ -90,7 +95,7 @@ export function SessionStarter() {
       amount: String(Math.max(1, Number(amount) || 0)),
       portfolioValue: String(Math.max(1, Number(portfolioValue) || 0)),
       sector: String(Math.min(100, Math.max(0, Number(sector) || 0))),
-      horizon: String(Math.max(1, Number(horizon) || 1)),
+      horizon: String(Math.min(50, Math.max(1, Math.round(Number(horizon) || 1)))),
       risk
     });
     router.push(`/committee?${params.toString()}`);
@@ -109,6 +114,7 @@ export function SessionStarter() {
           onChange={(e) => {
             setQuery(e.target.value);
             setSelected(null);
+            setMatches([]);
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -123,7 +129,7 @@ export function SessionStarter() {
         <button
           type="button"
           className="primaryButton"
-          onClick={() => (selected ? start() : void chooseRaw(query.trim().toUpperCase()))}
+          onClick={() => (selected ? void start() : void chooseRaw(query.trim().toUpperCase()))}
           disabled={!query.trim() || starting}
         >
           {starting ? "Opening…" : selected ? "Open session" : "Find"}
@@ -186,7 +192,7 @@ export function SessionStarter() {
               <input value={portfolioValue} onChange={(e) => setPortfolioValue(e.target.value)} inputMode="numeric" />
             </label>
             <label>
-              Current sector exposure, %
+              Current sector exposure, % (optional)
               <input value={sector} onChange={(e) => setSector(e.target.value)} inputMode="numeric" />
             </label>
             <label>
@@ -202,7 +208,7 @@ export function SessionStarter() {
               </select>
             </label>
           </div>
-          <button type="button" className="primaryButton" onClick={start} disabled={starting}>
+          <button type="button" className="primaryButton" onClick={() => void start()} disabled={starting}>
             {starting ? "Opening…" : `Open research session on ${selected.symbol}`}
           </button>
         </div>
