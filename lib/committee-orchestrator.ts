@@ -1,5 +1,6 @@
 import { AGENTS, CHAIR, SPECIALISTS, type AgentDefinition, type AgentKey } from "./agent-registry";
 import { emit, getSession, updateAgent, updateSession } from "./session-store";
+import { saveReport } from "./report-store";
 import { getMarketSnapshot, type MarketSnapshot } from "./market-data";
 import { getCompanyNews, type NewsItem } from "./market-news";
 import { fetchWithTimeout, timeoutFromEnv } from "./fetch-timeout";
@@ -477,7 +478,23 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
     });
 
     await updateSession(sessionId, { status: "COMPLETED" });
-    await emit(sessionId, "report.ready", { sessionId });
+
+    // Persist the durable record before announcing it. Sessions are pruned after
+    // a few hours; the report is what the client comes back to.
+    const finalSnapshot = await getSession(sessionId);
+    let reportVersion: number | null = null;
+    if (finalSnapshot) {
+      const report = await saveReport(finalSnapshot).catch((err) => {
+        console.error("Report persistence failed", sessionId, err);
+        return null;
+      });
+      reportVersion = report?.reportVersion ?? null;
+    }
+    await emit(sessionId, "report.ready", {
+      sessionId,
+      reportVersion,
+      url: `/report/${sessionId}`
+    });
     await emit(sessionId, "session.completed", { sessionId });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Committee session failed";

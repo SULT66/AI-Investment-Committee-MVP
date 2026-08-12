@@ -429,6 +429,7 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
               </ul>
               <h4>What would change this</h4>
               <ul className="triggers">{snapshot.decision.reviewTriggers.map((r, i) => <li key={i}>{r}</li>)}</ul>
+              <a className="reportCta" href={`/report/${sessionId}`}>View full committee report</a>
             </div>
           )}
         </aside>
