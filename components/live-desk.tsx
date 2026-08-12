@@ -298,11 +298,25 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
             </blockquote>
           )}
 
-          {/* Each member's own risks, so the stage is not dead space once they finish. */}
-          {active?.risks?.length ? (
-            <ul className="speakerRisks">
-              {active.risks.map((r, i) => <li key={i}>{r}</li>)}
-            </ul>
+          {/* The speaker's own position, so the stage carries information rather
+              than empty space once they have finished talking. */}
+          {active && (active.vote || active.risks?.length) ? (
+            <div className="speakerDetail">
+              {active.vote && (
+                <p className="speakerVote">
+                  <span>Position</span>
+                  <b className={voteTone(active.vote)}>{active.vote.replace("_", " ").toUpperCase()}</b>
+                  {typeof active.confidence === "number" && (
+                    <em>{Math.round(active.confidence * 100)}% confidence</em>
+                  )}
+                </p>
+              )}
+              {active.risks?.length ? (
+                <ul className="speakerRisks">
+                  {active.risks.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              ) : null}
+            </div>
           ) : null}
 
           {/* committee progress: horizontal on mobile, rail on desktop.
