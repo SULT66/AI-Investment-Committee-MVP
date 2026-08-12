@@ -92,6 +92,53 @@ const chairSchema = {
   ]
 } as const;
 
+
+/**
+ * Models occasionally leak self-talk into a constrained field — "(sorry extra
+ * tokens)", "(this block is corrupted)", long runs of filler. None of that can
+ * reach a client reading an investment review, so short strings are cleaned and
+ * anything degenerate is dropped rather than displayed.
+ */
+const FILLER =
+  /\((?:sorry|ignore|final|done|ok|stop|end|error|fixed|remove|replace|clean|actual|now real|complete|compressed|apologies|this is a mistake|the assistant[^)]*|[^)]{0,40}(?:glitch|corrupted|deliverable|one line|short|extras?)[^)]*)\)/gi;
+
+function cleanLine(input: unknown, maxLength = 240): string {
+  let text = String(input ?? "").replace(/\s+/g, " ").trim();
+  text = text.replace(FILLER, " ");
+  text = text.replace(/[“”"']\s*[.)\s]*$/, "");
+  text = text.replace(/(?:\s*\.\s*){3,}/g, ". ");   // "... . . . ." runs
+  text = text.replace(/\s*\((?:[^)]{0,30})\)\s*$/, "");   // dangling note at the end
+  text = text.replace(/^[\s.;,)—-]+/, "");
+  text = text.replace(/\s{2,}/g, " ").trim();
+  if (text.length > maxLength) {
+    const cut = text.slice(0, maxLength);
+    const stop = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("; "));
+    text = (stop > 60 ? cut.slice(0, stop + 1) : cut).trim() + (stop > 60 ? "" : "…");
+  }
+  return text;
+}
+
+/** A usable line is a sentence, not punctuation and leftover filler. */
+function isMeaningful(text: string): boolean {
+  if (text.length < 18) return false;
+  const letters = (text.match(/[\p{L}]/gu) ?? []).length;
+  if (letters < 15 || letters / text.length < 0.5) return false;
+  // needs real words, not fragments glued to punctuation
+  const words = text.split(/\s+/).filter((w) => /[\p{L}]{3,}/u.test(w));
+  return words.length >= 3;
+}
+
+function cleanList(input: unknown, max = 3): string[] {
+  if (!Array.isArray(input)) return [];
+  const out: string[] = [];
+  for (const item of input) {
+    const line = cleanLine(item);
+    if (isMeaningful(line) && !out.includes(line)) out.push(line);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 const clamp = (v: unknown, min: number, max: number) => Math.min(Math.max(Number(v) || 0, min), max);
 
 const fmt = (v: number | null | undefined, d = 2) =>
@@ -237,7 +284,8 @@ state a currency amount. Discuss size only as a percentage of the portfolio, nev
 policy-permitted maximum of ${sizing.maxPositionPercent}%.
 
 Your thesis is 1-2 sentences, spoken aloud in a meeting, first person, citing at least one specific
-number or dated event. Keep each risk to one short line — this is a spoken committee, not a report.
+number or dated event. Keep each risk to one short line — this is a spoken committee, not a report. Write only the risk
+itself: no parenthetical notes to yourself, no filler, no meta-commentary about formatting.
 Write every string in ${languageName}. confidence is 0 to 1.`.trim();
 
     const context = `MARKET DATA:\n${marketBlock(market)}\n\nRECENT NEWS:\n${newsBlock(news)}\n
@@ -273,8 +321,8 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
             vote: String(raw.vote),
             confidence: clamp(raw.confidence, 0, 1),
             suggestedAllocationPercent: clamp(raw.suggestedAllocationPercent, 0, 100),
-            thesis: String(raw.thesis ?? ""),
-            risks: Array.isArray(raw.risks) ? (raw.risks as string[]).map(String) : [],
+            thesis: cleanLine(raw.thesis, 400),
+            risks: cleanList(raw.risks),
             sources: Array.isArray(raw.sources)
               ? (raw.sources as Array<{ claim: string; evidence: string; asOf: string }>)
               : []
@@ -387,15 +435,15 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
 
     await updateAgent(sessionId, CHAIR.key, {
       status: "completed",
-      statement: String(chairRaw.thesis ?? ""),
+      statement: cleanLine(chairRaw.thesis, 400),
       vote: decisionLabel,
       confidence: confidence.score,
       completedAt: new Date().toISOString()
     });
     await emit(sessionId, "chairman.completed", {
       agentId: CHAIR.key,
-      text: String(chairRaw.thesis ?? ""),
-      summary: String(chairRaw.summary ?? "")
+      text: cleanLine(chairRaw.thesis, 400),
+      summary: cleanLine(chairRaw.summary, 300)
     });
 
     // Only now does the decision become visible — handoff §24.
@@ -404,14 +452,18 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
       confidence: confidence.score,
       horizon: String(chairRaw.decisionHorizon ?? ""),
       portfolioFit: String(chairRaw.portfolioFit ?? "moderate"),
-      reasons: Array.isArray(chairRaw.reasons) ? (chairRaw.reasons as string[]).map(String) : [],
-      risks: Array.isArray(chairRaw.risks) ? (chairRaw.risks as string[]).map(String) : [],
+      reasons: cleanList(chairRaw.reasons, 3).map((r) => cleanLine(r, 400)),
+      risks: cleanList(chairRaw.risks, 2).map((r) => cleanLine(r, 400)),
       dissent: Array.isArray(chairRaw.dissent)
         ? (chairRaw.dissent as Array<{ member: string; vote: string; reason: string }>)
+            .map((d) => ({
+              member: cleanLine(d.member, 60),
+              vote: String(d.vote ?? ""),
+              reason: cleanLine(d.reason, 320)
+            }))
+            .filter((d) => isMeaningful(d.reason))
         : [],
-      reviewTriggers: Array.isArray(chairRaw.reviewTriggers)
-        ? (chairRaw.reviewTriggers as string[]).map(String)
-        : [],
+      reviewTriggers: cleanList(chairRaw.reviewTriggers, 4),
       revealedAt: new Date().toISOString()
     };
 
