@@ -298,6 +298,13 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
             </blockquote>
           )}
 
+          {/* Each member's own risks, so the stage is not dead space once they finish. */}
+          {active?.risks?.length ? (
+            <ul className="speakerRisks">
+              {active.risks.map((r, i) => <li key={i}>{r}</li>)}
+            </ul>
+          ) : null}
+
           {/* committee progress: horizontal on mobile, rail on desktop.
               Clicking a completed member replays their statement on the stage. */}
           <ul className="committeeRail">
