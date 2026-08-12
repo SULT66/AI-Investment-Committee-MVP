@@ -1,55 +1,42 @@
+import { mkdir, readFile, rename, unlink, writeFile, readdir, stat } from "fs/promises";
+import { existsSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
 import type { AgentKey } from "./agent-registry";
 
 /**
- * Session state machine and event log.
+ * Durable session store.
  *
- * Handoff §7.2 / §7.3 / §8: the client must never hold one long HTTP request open
- * for a whole multi-agent session. The orchestrator writes state and events here;
- * the client subscribes and can replay anything it missed by sequence number.
+ * The previous in-process version lost every session when the app restarted or
+ * when a second instance answered the request — which is exactly what happened
+ * in production. This writes each session to disk instead.
  *
- * STORAGE NOTE — read before production:
- * This is an in-process store. It works on a single Azure instance and is enough
- * to remove the 504 today, but it does NOT survive a restart and does NOT work
- * across scaled-out instances. Before real users, back this with Postgres (session
- * + event tables) or Redis Streams. The interface below is deliberately narrow so
- * that swap touches this file only.
+ * On Azure App Service, /home is persistent and shared across instances, so a
+ * session created on one instance is readable by another. Writes are atomic
+ * (temp file + rename) and the event log is append-only, so a reader never sees
+ * a half-written snapshot.
+ *
+ * Set AIC_SESSION_DIR to override the location; locally it falls back to temp.
+ *
+ * Scaling note: right for the current single-app deployment. Under heavy
+ * concurrent load move to Postgres or Redis — the interface below is narrow
+ * enough that the swap touches this file only.
  */
 
 export type SessionStatus =
-  | "CREATED"
-  | "QUEUED"
-  | "RESEARCHING"
-  | "READY_TO_PRESENT"
-  | "LIVE"
-  | "CHAIRMAN_SYNTHESIS"
-  | "DECISION_REVEAL"
-  | "COMPLETED"
-  | "PARTIAL_DATA"
-  | "AGENT_TIMEOUT"
-  | "SESSION_TIMEOUT"
-  | "FAILED"
-  | "CANCELLED";
+  | "CREATED" | "QUEUED" | "RESEARCHING" | "READY_TO_PRESENT" | "LIVE"
+  | "CHAIRMAN_SYNTHESIS" | "DECISION_REVEAL" | "COMPLETED"
+  | "PARTIAL_DATA" | "AGENT_TIMEOUT" | "SESSION_TIMEOUT" | "FAILED" | "CANCELLED";
 
 export type SessionEventName =
-  | "session.created"
-  | "session.research.progress"
-  | "evidence.added"
-  | "agent.started"
-  | "agent.statement.completed"
-  | "agent.opinion.saved"
-  | "agent.failed"
-  | "committee.vote.updated"
-  | "chairman.started"
-  | "chairman.completed"
-  | "decision.revealed"
-  | "report.ready"
-  | "session.completed"
-  | "session.failed";
+  | "session.created" | "session.research.progress" | "evidence.added"
+  | "agent.started" | "agent.statement.completed" | "agent.opinion.saved" | "agent.failed"
+  | "committee.vote.updated" | "chairman.started" | "chairman.completed"
+  | "decision.revealed" | "report.ready" | "session.completed" | "session.failed";
 
 export type SessionEvent = {
   event: SessionEventName;
   sessionId: string;
-  /** monotonically increasing per session — the client replays from its last ack */
   sequence: number;
   timestamp: string;
   payload: Record<string, unknown>;
@@ -76,7 +63,6 @@ export type SessionSnapshot = {
   updatedAt: string;
   lastSequence: number;
   agents: AgentRuntimeState[];
-  /** Handoff §24: never exposed before the chairman reveal */
   decision: null | {
     label: string;
     confidence: number;
@@ -98,36 +84,72 @@ export type SessionSnapshot = {
   error?: { code: string; message: string };
 };
 
-type StoredSession = {
-  snapshot: SessionSnapshot;
-  events: SessionEvent[];
-  subscribers: Set<(event: SessionEvent) => void>;
-};
+type SessionFile = { snapshot: SessionSnapshot; events: SessionEvent[] };
 
-const SESSION_TTL_MS = 60 * 60 * 1000;
-const MAX_SESSIONS = 500;
+const SESSION_TTL_MS = 6 * 60 * 60 * 1000;
 
-const sessions = new Map<string, StoredSession>();
+function baseDir(): string {
+  const configured = process.env.AIC_SESSION_DIR;
+  if (configured) return configured;
+  if (existsSync("/home")) return "/home/data/aic-sessions";
+  return join(tmpdir(), "aic-sessions");
+}
 
-function prune() {
-  const cutoff = Date.now() - SESSION_TTL_MS;
-  for (const [id, s] of sessions) {
-    if (new Date(s.snapshot.updatedAt).getTime() < cutoff) sessions.delete(id);
-  }
-  while (sessions.size > MAX_SESSIONS) {
-    const oldest = sessions.keys().next().value as string | undefined;
-    if (!oldest) break;
-    sessions.delete(oldest);
+async function ensureDir(): Promise<string> {
+  const dir = baseDir();
+  await mkdir(dir, { recursive: true });
+  return dir;
+}
+
+function safeId(id: string): string | null {
+  return /^sess_[A-Za-z0-9_-]{1,64}$/.test(id) ? id : null;
+}
+
+function filePath(dir: string, id: string): string {
+  return join(dir, id + ".json");
+}
+
+async function readFileFor(id: string): Promise<SessionFile | null> {
+  const clean = safeId(id);
+  if (!clean) return null;
+  try {
+    const dir = await ensureDir();
+    const raw = await readFile(filePath(dir, clean), "utf8");
+    return JSON.parse(raw) as SessionFile;
+  } catch {
+    return null;
   }
 }
 
-export function createSession(init: {
+async function writeFileFor(id: string, data: SessionFile): Promise<void> {
+  const clean = safeId(id);
+  if (!clean) return;
+  const dir = await ensureDir();
+  const target = filePath(dir, clean);
+  const temp = target + "." + process.pid + "." + Date.now() + ".tmp";
+  await writeFile(temp, JSON.stringify(data), "utf8");
+  await rename(temp, target);
+}
+
+const queues = new Map<string, Promise<unknown>>();
+function withLock<T>(id: string, task: () => Promise<T>): Promise<T> {
+  const previous = queues.get(id) ?? Promise.resolve();
+  const next = previous.then(task, task);
+  queues.set(
+    id,
+    next.catch(() => undefined).finally(() => {
+      if (queues.get(id) === next) queues.delete(id);
+    })
+  );
+  return next;
+}
+
+export async function createSession(init: {
   id: string;
   type: SessionSnapshot["type"];
   ticker: string;
   agentKeys: AgentKey[];
-}): SessionSnapshot {
-  prune();
+}): Promise<SessionSnapshot> {
   const now = new Date().toISOString();
   const snapshot: SessionSnapshot = {
     id: init.id,
@@ -137,7 +159,7 @@ export function createSession(init: {
     createdAt: now,
     updatedAt: now,
     lastSequence: 0,
-    agents: init.agentKeys.map((agentKey) => ({ agentKey, status: "waiting" })),
+    agents: init.agentKeys.map((agentKey) => ({ agentKey, status: "waiting" as const })),
     decision: null,
     marketData: null,
     news: [],
@@ -146,69 +168,84 @@ export function createSession(init: {
     policyChecks: null,
     dataSufficiency: null
   };
-  sessions.set(init.id, { snapshot, events: [], subscribers: new Set() });
+  await withLock(init.id, () => writeFileFor(init.id, { snapshot, events: [] }));
+  void pruneOldSessions();
   return snapshot;
 }
 
-export function getSession(id: string): SessionSnapshot | null {
-  return sessions.get(id)?.snapshot ?? null;
+export async function getSession(id: string): Promise<SessionSnapshot | null> {
+  const file = await readFileFor(id);
+  return file ? file.snapshot : null;
 }
 
-/** Events after `afterSequence`, for reconnect replay. */
-export function getEvents(id: string, afterSequence = 0): SessionEvent[] {
-  const s = sessions.get(id);
-  if (!s) return [];
-  return s.events.filter((e) => e.sequence > afterSequence);
+export async function getEvents(id: string, afterSequence = 0): Promise<SessionEvent[]> {
+  const file = await readFileFor(id);
+  if (!file) return [];
+  return file.events.filter((e) => e.sequence > afterSequence);
 }
 
-export function updateSession(id: string, patch: Partial<SessionSnapshot>): void {
-  const s = sessions.get(id);
-  if (!s) return;
-  Object.assign(s.snapshot, patch, { updatedAt: new Date().toISOString() });
+export async function updateSession(id: string, patch: Partial<SessionSnapshot>): Promise<void> {
+  await withLock(id, async () => {
+    const file = await readFileFor(id);
+    if (!file) return;
+    Object.assign(file.snapshot, patch, { updatedAt: new Date().toISOString() });
+    await writeFileFor(id, file);
+  });
 }
 
-export function updateAgent(id: string, agentKey: AgentKey, patch: Partial<AgentRuntimeState>): void {
-  const s = sessions.get(id);
-  if (!s) return;
-  const agent = s.snapshot.agents.find((a) => a.agentKey === agentKey);
-  if (!agent) return; // unknown seat: ignore rather than crash — handoff §7.1
-  Object.assign(agent, patch);
-  s.snapshot.updatedAt = new Date().toISOString();
+export async function updateAgent(
+  id: string,
+  agentKey: AgentKey,
+  patch: Partial<AgentRuntimeState>
+): Promise<void> {
+  await withLock(id, async () => {
+    const file = await readFileFor(id);
+    if (!file) return;
+    const agent = file.snapshot.agents.find((a) => a.agentKey === agentKey);
+    if (!agent) return;
+    Object.assign(agent, patch);
+    file.snapshot.updatedAt = new Date().toISOString();
+    await writeFileFor(id, file);
+  });
 }
 
-export function emit(
+export async function emit(
   id: string,
   event: SessionEventName,
   payload: Record<string, unknown> = {}
-): SessionEvent | null {
-  const s = sessions.get(id);
-  if (!s) return null;
-  const record: SessionEvent = {
-    event,
-    sessionId: id,
-    sequence: ++s.snapshot.lastSequence,
-    timestamp: new Date().toISOString(),
-    payload
-  };
-  s.events.push(record);
-  s.snapshot.updatedAt = record.timestamp;
-  for (const notify of s.subscribers) {
-    try {
-      notify(record);
-    } catch {
-      /* a broken subscriber must not stop the session */
-    }
-  }
-  return record;
-}
-
-export function subscribe(id: string, listener: (event: SessionEvent) => void): () => void {
-  const s = sessions.get(id);
-  if (!s) return () => {};
-  s.subscribers.add(listener);
-  return () => s.subscribers.delete(listener);
+): Promise<SessionEvent | null> {
+  return withLock(id, async () => {
+    const file = await readFileFor(id);
+    if (!file) return null;
+    const record: SessionEvent = {
+      event,
+      sessionId: id,
+      sequence: ++file.snapshot.lastSequence,
+      timestamp: new Date().toISOString(),
+      payload
+    };
+    file.events.push(record);
+    file.snapshot.updatedAt = record.timestamp;
+    await writeFileFor(id, file);
+    return record;
+  });
 }
 
 export function isTerminal(status: SessionStatus): boolean {
-  return ["COMPLETED", "FAILED", "CANCELLED", "SESSION_TIMEOUT"].includes(status);
+  return ["COMPLETED", "FAILED", "CANCELLED", "SESSION_TIMEOUT", "PARTIAL_DATA"].includes(status);
+}
+
+async function pruneOldSessions(): Promise<void> {
+  try {
+    const dir = await ensureDir();
+    const cutoff = Date.now() - SESSION_TTL_MS;
+    for (const name of await readdir(dir)) {
+      if (!name.endsWith(".json")) continue;
+      const full = join(dir, name);
+      const info = await stat(full).catch(() => null);
+      if (info && info.mtimeMs < cutoff) await unlink(full).catch(() => undefined);
+    }
+  } catch {
+    /* housekeeping must never break a session */
+  }
 }

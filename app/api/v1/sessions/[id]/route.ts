@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 /** Snapshot for first paint and for recovery after a reload. */
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const snapshot = getSession(id);
+  const snapshot = await getSession(id);
   if (!snapshot) {
     return NextResponse.json({ error: { code: "SESSION_NOT_FOUND" } }, { status: 404 });
   }

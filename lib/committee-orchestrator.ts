@@ -162,23 +162,23 @@ export async function runCommitteeJob(sessionId: string, input: SessionInput): P
   const languageName = LANGUAGE_NAMES[input.language] ?? "English";
 
   try {
-    updateSession(sessionId, { status: "RESEARCHING" });
-    emit(sessionId, "session.research.progress", { stage: "market_data" });
+    await updateSession(sessionId, { status: "RESEARCHING" });
+    await emit(sessionId, "session.research.progress", { stage: "market_data" });
 
     const market = await getMarketSnapshot(input.ticker).catch(() => null);
     if (!market) {
-      updateSession(sessionId, {
+      await updateSession(sessionId, {
         status: "FAILED",
         error: { code: "DATA_UNAVAILABLE", message: `No market data for ${input.ticker}.` }
       });
-      emit(sessionId, "session.failed", {
+      await emit(sessionId, "session.failed", {
         code: "DATA_UNAVAILABLE",
         message: "Decision deferred — insufficient current data."
       });
       return;
     }
 
-    emit(sessionId, "session.research.progress", { stage: "news" });
+    await emit(sessionId, "session.research.progress", { stage: "news" });
     const news = await getCompanyNews(input.ticker);
 
     const profile: InvestorProfile = {
@@ -212,7 +212,7 @@ export async function runCommitteeJob(sessionId: string, input: SessionInput): P
     const checks = runPolicyChecks(profile, policy, market, sizing);
     const sufficiency = checkDataSufficiency(market, news);
 
-    updateSession(sessionId, {
+    await updateSession(sessionId, {
       status: "READY_TO_PRESENT",
       marketData: market,
       news,
@@ -222,7 +222,7 @@ export async function runCommitteeJob(sessionId: string, input: SessionInput): P
       policyChecks: checks,
       dataSufficiency: sufficiency
     });
-    emit(sessionId, "evidence.added", { marketData: market, news: news.slice(0, 5), policy, sizing });
+    await emit(sessionId, "evidence.added", { marketData: market, news: news.slice(0, 5), policy, sizing });
 
     const rules = `
 Ground every claim in the data supplied. Never invent earnings figures, price targets, analyst
@@ -247,13 +247,13 @@ PROPOSAL: reviewing ${market.symbol}, position under consideration ${(
     }, horizon ${input.horizonYears}y.
 POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxSectorPercent}%, permitted max ${sizing.maxPositionPercent}% (binding: ${sizing.bindingConstraint}).`;
 
-    updateSession(sessionId, { status: "LIVE" });
+    await updateSession(sessionId, { status: "LIVE" });
 
     // Specialists run concurrently; each is announced and reported as it lands.
     const results = await Promise.allSettled(
       SPECIALISTS.map(async (agent: AgentDefinition) => {
-        updateAgent(sessionId, agent.key, { status: "researching", startedAt: new Date().toISOString() });
-        emit(sessionId, "agent.started", {
+        await updateAgent(sessionId, agent.key, { status: "researching", startedAt: new Date().toISOString() });
+        await emit(sessionId, "agent.started", {
           agentId: agent.key,
           displayName: agent.displayName,
           topics: agent.evidenceTopics
@@ -279,7 +279,7 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
               : []
           };
 
-          updateAgent(sessionId, agent.key, {
+          await updateAgent(sessionId, agent.key, {
             status: "completed",
             statement: opinion.thesis,
             vote: opinion.vote,
@@ -288,24 +288,24 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
             sources: opinion.sources,
             completedAt: new Date().toISOString()
           });
-          emit(sessionId, "agent.statement.completed", {
+          await emit(sessionId, "agent.statement.completed", {
             agentId: agent.key,
             displayName: agent.displayName,
             text: opinion.thesis,
             sources: opinion.sources
           });
-          emit(sessionId, "agent.opinion.saved", {
+          await emit(sessionId, "agent.opinion.saved", {
             agentId: agent.key,
             vote: opinion.vote,
             confidence: opinion.confidence,
             risks: opinion.risks
           });
-          emit(sessionId, "committee.vote.updated", { agentId: agent.key, vote: opinion.vote });
+          await emit(sessionId, "committee.vote.updated", { agentId: agent.key, vote: opinion.vote });
           return { agent, opinion };
         } catch (error) {
           const timedOut = error instanceof Error && error.name === "UpstreamTimeoutError";
-          updateAgent(sessionId, agent.key, { status: timedOut ? "timeout" : "failed" });
-          emit(sessionId, "agent.failed", {
+          await updateAgent(sessionId, agent.key, { status: timedOut ? "timeout" : "failed" });
+          await emit(sessionId, "agent.failed", {
             agentId: agent.key,
             displayName: agent.displayName,
             code: timedOut ? "AGENT_TIMEOUT" : "AGENT_FAILED"
@@ -322,7 +322,7 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
 
     const failed = SPECIALISTS.length - opinions.length;
     if (failed > 0) {
-      emit(sessionId, "session.research.progress", {
+      await emit(sessionId, "session.research.progress", {
         stage: "partial_committee",
         message: `${failed} of ${SPECIALISTS.length} agents did not report in time.`
       });
@@ -330,18 +330,18 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
 
     const quorum = Number(process.env.AIC_MIN_QUORUM ?? 3);
     if (opinions.length < quorum) {
-      updateSession(sessionId, {
+      await updateSession(sessionId, {
         status: "PARTIAL_DATA",
         error: { code: "QUORUM_NOT_MET", message: "Too few agents responded to reach a decision." }
       });
-      emit(sessionId, "session.failed", { code: "QUORUM_NOT_MET" });
+      await emit(sessionId, "session.failed", { code: "QUORUM_NOT_MET" });
       return;
     }
 
     // Chairman. Decision stays out of the snapshot until this completes.
-    updateSession(sessionId, { status: "CHAIRMAN_SYNTHESIS" });
-    updateAgent(sessionId, CHAIR.key, { status: "speaking", startedAt: new Date().toISOString() });
-    emit(sessionId, "chairman.started", { agentId: CHAIR.key, displayName: CHAIR.displayName });
+    await updateSession(sessionId, { status: "CHAIRMAN_SYNTHESIS" });
+    await updateAgent(sessionId, CHAIR.key, { status: "speaking", startedAt: new Date().toISOString() });
+    await emit(sessionId, "chairman.started", { agentId: CHAIR.key, displayName: CHAIR.displayName });
 
     const table = opinions
       .map(
@@ -384,14 +384,14 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
 
     const decisionLabel = sufficiency.sufficient ? String(chairRaw.decision) : "defer";
 
-    updateAgent(sessionId, CHAIR.key, {
+    await updateAgent(sessionId, CHAIR.key, {
       status: "completed",
       statement: String(chairRaw.thesis ?? ""),
       vote: decisionLabel,
       confidence: confidence.score,
       completedAt: new Date().toISOString()
     });
-    emit(sessionId, "chairman.completed", {
+    await emit(sessionId, "chairman.completed", {
       agentId: CHAIR.key,
       text: String(chairRaw.thesis ?? ""),
       summary: String(chairRaw.summary ?? "")
@@ -414,8 +414,8 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
       revealedAt: new Date().toISOString()
     };
 
-    updateSession(sessionId, { status: "DECISION_REVEAL", decision });
-    emit(sessionId, "decision.revealed", {
+    await updateSession(sessionId, { status: "DECISION_REVEAL", decision });
+    await emit(sessionId, "decision.revealed", {
       ...decision,
       confidenceBreakdown: confidence,
       maxPositionPercent: sizing.maxPositionPercent,
@@ -423,15 +423,15 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
       summary: String(chairRaw.summary ?? "")
     });
 
-    updateSession(sessionId, { status: "COMPLETED" });
-    emit(sessionId, "report.ready", { sessionId });
-    emit(sessionId, "session.completed", { sessionId });
+    await updateSession(sessionId, { status: "COMPLETED" });
+    await emit(sessionId, "report.ready", { sessionId });
+    await emit(sessionId, "session.completed", { sessionId });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Committee session failed";
     console.error("Committee job failed", sessionId, error);
-    if (getSession(sessionId)) {
-      updateSession(sessionId, { status: "FAILED", error: { code: "SESSION_FAILED", message } });
-      emit(sessionId, "session.failed", { code: "SESSION_FAILED", message });
+    if (await getSession(sessionId)) {
+      await updateSession(sessionId, { status: "FAILED", error: { code: "SESSION_FAILED", message } });
+      await emit(sessionId, "session.failed", { code: "SESSION_FAILED", message });
     }
   }
 }

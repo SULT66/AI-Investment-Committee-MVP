@@ -38,8 +38,8 @@ export async function POST(request: Request) {
   const sessionId = `sess_${randomUUID()}`;
   const agentKeys = [...SPECIALISTS.map((a) => a.key), CHAIR.key];
 
-  createSession({ id: sessionId, type: input.type, ticker: input.ticker.toUpperCase(), agentKeys });
-  emit(sessionId, "session.created", {
+  await createSession({ id: sessionId, type: input.type, ticker: input.ticker.toUpperCase(), agentKeys });
+  await emit(sessionId, "session.created", {
     type: input.type,
     ticker: input.ticker.toUpperCase(),
     agents: agentKeys
