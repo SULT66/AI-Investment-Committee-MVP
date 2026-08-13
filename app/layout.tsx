@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
-import "./committee/boardroom-final.css";
 
 export const metadata: Metadata = {
   title: "AI Investment Committee",

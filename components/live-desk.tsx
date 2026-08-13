@@ -232,7 +232,7 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
     <div className="desk">
       {/* ---- header ---- */}
       <header className="deskHeader">
-        <span className="deskLogo">AIC</span>
+        <a className="deskLogo" href="/" aria-label="AIC home">AIC</a>
         <span className={`deskLive ${sessionOver ? "closed" : connection}`}>
           {sessionOver
             ? "● SESSION ENDED"

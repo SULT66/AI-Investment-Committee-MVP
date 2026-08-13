@@ -14,7 +14,9 @@
   padding:10px 16px; background:rgba(4,7,14,.94); border-bottom:1px solid var(--line);
   backdrop-filter:blur(8px);
 }
-.deskLogo{font-weight:700; font-size:19px; color:var(--accent); letter-spacing:.5px}
+.deskLogo{font-weight:700; font-size:19px; color:var(--accent); letter-spacing:.5px;
+  text-decoration:none}
+.deskLogo:hover{filter:brightness(1.2)}
 .deskLive{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; color:var(--up)}
 .deskLive.connecting,.deskLive.error{color:var(--warn)}
 .deskLive.closed{color:var(--dim)}
