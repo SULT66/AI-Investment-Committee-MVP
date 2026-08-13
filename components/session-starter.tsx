@@ -60,12 +60,30 @@ export function SessionStarter() {
     };
   }, [query, selected]);
 
-  function choose(match: SymbolMatch) {
-    setSelected(match);
-    setQuery(match.symbol);
+  async function choose(match: SymbolMatch) {
     setMatches([]);
     setError("");
-    setShowConstraints(true);
+    setSearching(true);
+    try {
+      // Search knows every symbol the provider lists; quotes cover fewer. Verify
+      // before letting the visitor spend a review on one we cannot price.
+      const res = await fetch(`/api/market-data?symbol=${encodeURIComponent(match.symbol)}`);
+      if (!res.ok) {
+        setQuery(match.symbol);
+        setError(
+          `No live quote available for "${match.symbol}". It may be outside the current market ` +
+          `data coverage. Large US-listed symbols work reliably.`
+        );
+        return;
+      }
+      setSelected(match);
+      setQuery(match.symbol);
+      setShowConstraints(true);
+    } catch {
+      setError("Could not verify that instrument.");
+    } finally {
+      setSearching(false);
+    }
   }
 
   async function chooseRaw(symbol: string) {
@@ -78,7 +96,9 @@ export function SessionStarter() {
         return;
       }
       const d = (await res.json()) as { symbol: string; name?: string };
-      choose({ symbol: d.symbol, description: d.name ?? d.symbol, type: "" });
+      setSelected({ symbol: d.symbol, description: d.name ?? d.symbol, type: "" });
+      setQuery(d.symbol);
+      setShowConstraints(true);
     } catch {
       setError("Could not verify that instrument.");
     } finally {
@@ -154,7 +174,7 @@ export function SessionStarter() {
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              if (matches.length) choose(matches[0]);
+              if (matches.length) void choose(matches[0]);
               else if (query.trim()) void chooseRaw(query.trim().toUpperCase());
             }
           }}
@@ -190,7 +210,7 @@ export function SessionStarter() {
         <ul className="starterResults">
           {matches.map((m) => (
             <li key={m.symbol}>
-              <button type="button" onClick={() => choose(m)}>
+              <button type="button" onClick={() => void choose(m)}>
                 <b>{m.symbol}</b>
                 <span>{m.description}</span>
                 {m.type && <em>{m.type}</em>}

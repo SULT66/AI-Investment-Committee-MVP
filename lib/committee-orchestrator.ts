@@ -233,7 +233,13 @@ export async function runCommitteeJob(
     if (!market) {
       await updateSession(sessionId, {
         status: "FAILED",
-        error: { code: "DATA_UNAVAILABLE", message: `No market data for ${input.ticker}.` }
+        error: {
+          code: "DATA_UNAVAILABLE",
+          message:
+            `The market data provider returned no quote for ${input.ticker}. This usually means ` +
+            `the symbol is outside the current data plan's coverage rather than that it does not ` +
+            `exist. Large US-listed names work reliably.`
+        }
       });
       await emit(sessionId, "session.failed", {
         code: "DATA_UNAVAILABLE",
