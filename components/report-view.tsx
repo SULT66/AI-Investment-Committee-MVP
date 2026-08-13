@@ -93,7 +93,7 @@ export function ReportView({ sessionId }: { sessionId: string }) {
     <main className="report">
       <header className="reportHead">
         <div>
-          <p className="reportKicker">Committee report</p>
+          <p className="reportKicker"><a href="/">AIC</a> &middot; Committee report</p>
           <h1>{report.asset.name} · {report.asset.symbol}</h1>
           <p className="reportMeta">
             {report.asset.exchange}{report.asset.industry ? ` · ${report.asset.industry}` : ""} ·
@@ -103,6 +103,7 @@ export function ReportView({ sessionId }: { sessionId: string }) {
         <div className="reportActions">
           <button onClick={() => window.print()}>Print / PDF</button>
           <a href={`/live/${report.sessionId}`}>Replay session</a>
+          <a href="/">New session</a>
         </div>
       </header>
 
