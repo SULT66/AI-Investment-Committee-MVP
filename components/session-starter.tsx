@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type SymbolMatch = { symbol: string; description: string; type: string };
@@ -24,6 +24,7 @@ export function SessionStarter() {
   const [showConstraints, setShowConstraints] = useState(false);
   const [starting, setStarting] = useState(false);
   const [exhausted, setExhausted] = useState("");
+  const inFlight = useRef(false);
 
   const [amount, setAmount] = useState("5000");
   const [portfolioValue, setPortfolioValue] = useState("120000");
@@ -143,6 +144,11 @@ export function SessionStarter() {
           already run remain free, and your past reports stay available.
         </p>
       )}
+      {starting && (
+        <p className="starterNote">
+          Convening the committee. This uses one review and takes about a minute.
+        </p>
+      )}
       {searching && <p className="starterNote">Searching…</p>}
       {error && <p className="starterError">{error}</p>}
 
@@ -216,7 +222,7 @@ export function SessionStarter() {
             </label>
           </div>
           <button type="button" className="primaryButton" onClick={() => void start()} disabled={starting}>
-            {starting ? "Opening…" : `Open research session on ${selected.symbol}`}
+            {starting ? "Opening the session…" : `Open research session on ${selected.symbol}`}
           </button>
         </div>
       )}

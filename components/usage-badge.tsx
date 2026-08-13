@@ -31,9 +31,7 @@ export function UsageBadge() {
   const out = state.remaining === 0;
   return (
     <span className={out ? "usageBadge out" : "usageBadge"}>
-      {out
-        ? "No free reviews left"
-        : `${state.remaining} of ${state.allowance} free reviews left`}
+      {out ? "No free reviews" : `${state.remaining}/${state.allowance} free reviews`}
     </span>
   );
 }
