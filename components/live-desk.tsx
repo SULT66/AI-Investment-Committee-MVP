@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 type AgentState = {
   agentKey: string;
   status: "waiting" | "researching" | "speaking" | "completed" | "failed" | "timeout";
+  completedAt?: string;
   statement?: string;
   vote?: string;
   confidence?: number;
@@ -98,6 +99,10 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
   const [askOpen, setAskOpen] = useState(false);
   const lastSequence = useRef(0);
 
+  const sessionFinished = ["COMPLETED", "FAILED", "CANCELLED", "PARTIAL_DATA", "SESSION_TIMEOUT"].includes(
+    snapshot?.status ?? ""
+  );
+
   const refreshSnapshot = useCallback(async () => {
     try {
       const res = await fetch(`/api/v1/sessions/${sessionId}`, { cache: "no-store" });
@@ -113,6 +118,20 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     void refreshSnapshot();
   }, [refreshSnapshot]);
+
+  /**
+   * Polling fallback (handoff §7.3).
+   *
+   * Some hosts buffer server-sent events, which strands the desk on "researching"
+   * even though the session has finished. Polling the snapshot is cheap and makes
+   * the page correct whether or not the stream gets through. It stops as soon as
+   * the session reaches a terminal state.
+   */
+  useEffect(() => {
+    if (sessionFinished) return;
+    const timer = window.setInterval(() => { void refreshSnapshot(); }, 3000);
+    return () => window.clearInterval(timer);
+  }, [refreshSnapshot, sessionFinished]);
 
   useEffect(() => {
     let source: EventSource | null = null;
@@ -197,23 +216,56 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
     [agents, activeKey]
   );
 
-  // Opening a finished session directly (a shared link, a reload) must not show an
-  // empty stage: fall back to whoever spoke last, chairman first.
+  /**
+   * Derive the speaker from the snapshot when events are not arriving. Without
+   * this the stage stays blank on any host that buffers the event stream.
+   */
   useEffect(() => {
-    if (activeKey || !snapshot) return;
+    if (!snapshot) return;
     const chair = snapshot.agents.find((a) => a.agentKey === "chairman" && a.statement);
-    const lastSpoken = [...snapshot.agents].reverse().find((a) => a.statement);
-    const fallback = chair ?? lastSpoken;
-    if (fallback) setActiveKey(fallback.agentKey);
+    if (chair) { setActiveKey("chairman"); return; }
+
+    // whoever is speaking now, else the most recent to finish
+    const speaking = snapshot.agents.find((a) => a.status === "speaking");
+    if (speaking) { setActiveKey(speaking.agentKey); return; }
+
+    const finished = snapshot.agents
+      .filter((a) => a.statement && a.completedAt)
+      .sort((a, b) => String(a.completedAt).localeCompare(String(b.completedAt)));
+    const latest = finished.at(-1);
+    if (latest && latest.agentKey !== activeKey) setActiveKey(latest.agentKey);
   }, [snapshot, activeKey]);
   const activeLine = useMemo(() => {
     const spoken = [...transcript].reverse().find((t) => t.key === activeKey);
     return spoken?.text ?? active?.statement ?? "";
   }, [transcript, activeKey, active]);
 
-  const sessionOver = ["COMPLETED", "FAILED", "CANCELLED", "PARTIAL_DATA", "SESSION_TIMEOUT"].includes(
-    snapshot?.status ?? ""
-  );
+  const sessionOver = sessionFinished;
+
+  /** A failed session must say why, not sit on a blank stage. */
+  const failure = (() => {
+    if (!snapshot) return "";
+    if (snapshot.status === "FAILED" || snapshot.status === "SESSION_TIMEOUT") {
+      return snapshot.error?.message || "The committee could not finish this review.";
+    }
+    if (snapshot.status === "PARTIAL_DATA") {
+      return snapshot.error?.message || "Too few specialists reported in time to reach a decision.";
+    }
+    return "";
+  })();
+
+  const progressLabel = (() => {
+    switch (snapshot?.status) {
+      case "CREATED":
+      case "QUEUED": return "Opening the session";
+      case "RESEARCHING": return "Gathering market data and news";
+      case "READY_TO_PRESENT":
+      case "LIVE": return "The committee is deliberating";
+      case "CHAIRMAN_SYNTHESIS": return "The Chairman is preparing the synthesis";
+      case "COMPLETED": return "Session complete";
+      default: return "Connecting to the session";
+    }
+  })();
   const md = snapshot?.marketData ?? null;
   const tally = agents.reduce(
     (acc, a) => {
@@ -268,17 +320,24 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
             )}
             {!activeKey && (
               <div className="speakerIdle">
-                <span>
-                  {snapshot?.status === "RESEARCHING"
-                    ? "Committee is researching…"
-                    : snapshot?.status === "CHAIRMAN_SYNTHESIS"
-                      ? "Chairman is preparing the synthesis…"
-                      : snapshot?.status === "COMPLETED"
-                        ? "Session complete"
-                        : snapshot?.status
-                          ? snapshot.status.toLowerCase().replace(/_/g, " ")
-                          : "Connecting…"}
-                </span>
+                {failure ? (
+                  <div className="stageFailure">
+                    <p className="stageFailureTitle">This session could not complete</p>
+                    <p className="stageFailureText">{failure}</p>
+                    <a className="stageFailureAction" href="/">Start another session</a>
+                    <p className="stageFailureNote">
+                      A session that fails does not use one of your free reviews.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="stageProgress">
+                    <span className="stageSpinner" aria-hidden="true" />
+                    <p>{progressLabel}</p>
+                    <p className="stageProgressNote">
+                      Seven specialists are working in parallel. A full review takes one to two minutes.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -404,7 +463,9 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
           {!revealed || !snapshot?.decision ? (
             <div className="pending">
               <h3>Committee decision</h3>
-              <p className="pendingLabel">PENDING</p>
+              <p className={failure ? "pendingLabel failed" : "pendingLabel"}>
+                {failure ? "NOT COMPLETED" : "PENDING"}
+              </p>
               <p className="pendingNote">{done} of {total} agents completed</p>
               <div className="tally">
                 <span className="up"><b>{tally.buy}</b>BUY</span>
@@ -412,9 +473,11 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
                 <span className="down"><b>{tally.avoid}</b>AVOID</span>
               </div>
               <p className="pendingNote small">
-                {sessionOver
-                  ? "The session ended before the Chairman issued a decision. The individual opinions above stand on their own."
-                  : "The final decision is released only after the Chairman completes the synthesis."}
+                {failure
+                  ? failure
+                  : sessionOver
+                    ? "The session ended before the Chairman issued a decision. The individual opinions above stand on their own."
+                    : "The final decision is released only after the Chairman completes the synthesis."}
               </p>
             </div>
           ) : (

@@ -130,11 +130,11 @@ function isMeaningful(text: string): boolean {
   return words.length >= 3;
 }
 
-function cleanList(input: unknown, max = 3): string[] {
+function cleanList(input: unknown, max = 3, maxLength = 240): string[] {
   if (!Array.isArray(input)) return [];
   const out: string[] = [];
   for (const item of input) {
-    const line = cleanLine(item);
+    const line = cleanLine(item, maxLength);
     if (isMeaningful(line) && !out.includes(line)) out.push(line);
     if (out.length >= max) break;
   }
@@ -471,8 +471,8 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
       confidence: confidence.score,
       horizon: String(chairRaw.decisionHorizon ?? ""),
       portfolioFit: String(chairRaw.portfolioFit ?? "moderate"),
-      reasons: cleanList(chairRaw.reasons, 3).map((r) => cleanLine(r, 400)),
-      risks: cleanList(chairRaw.risks, 2).map((r) => cleanLine(r, 400)),
+      reasons: cleanList(chairRaw.reasons, 3, 400),
+      risks: cleanList(chairRaw.risks, 2, 400),
       dissent: Array.isArray(chairRaw.dissent)
         ? (chairRaw.dissent as Array<{ member: string; vote: string; reason: string }>)
             .map((d) => ({
@@ -482,7 +482,7 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
             }))
             .filter((d) => isMeaningful(d.reason))
         : [],
-      reviewTriggers: cleanList(chairRaw.reviewTriggers, 4),
+      reviewTriggers: cleanList(chairRaw.reviewTriggers, 4, 320),
       revealedAt: new Date().toISOString()
     };
 
