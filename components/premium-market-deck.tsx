@@ -51,7 +51,10 @@ function readStored(): string[] {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? (JSON.parse(raw) as unknown) : null;
     if (Array.isArray(parsed) && parsed.length >= MIN_SYMBOLS) {
-      return parsed.filter((s): s is string => typeof s === "string").slice(0, MAX_SYMBOLS);
+      const safe = parsed.filter(
+        (s): s is string => typeof s === "string" && /^[A-Z0-9][A-Z0-9.:_-]{0,31}$/.test(s)
+      );
+      if (safe.length >= MIN_SYMBOLS) return safe.slice(0, MAX_SYMBOLS);
     }
   } catch {
     /* ignore malformed storage */
@@ -75,6 +78,7 @@ export function PremiumMarketDeck() {
 
   // hydrate from storage after mount so server and client markup match
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- browser storage is only available after hydration
     setSymbols(readStored());
     mounted.current = true;
   }, []);
@@ -94,86 +98,62 @@ export function PremiumMarketDeck() {
   useEffect(() => {
     const q = draft.trim();
     if (!editing || q.length < 2) {
-      setMatches([]);
       return;
     }
+    const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await fetch(`/api/symbol-search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/symbol-search?q=${encodeURIComponent(q)}`, { signal: controller.signal });
         if (!res.ok) throw new Error("search failed");
         const data = (await res.json()) as { results?: SymbolMatch[] };
         setMatches(data.results ?? []);
-      } catch {
-        setMatches([]);
+      } catch (searchError) {
+        if (!(searchError instanceof DOMException && searchError.name === "AbortError")) setMatches([]);
       } finally {
-        setSearching(false);
+        if (!controller.signal.aborted) setSearching(false);
       }
     }, 300);
-    return () => window.clearTimeout(timer);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
   }, [draft, editing]);
 
-  // headlines + the focus symbol still come from the existing stream endpoint
+  // One batched endpoint supplies the selected quotes and focus-symbol news.
+  // This avoids a burst of 10–14 browser requests every 30 seconds.
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     async function load() {
       try {
-        const ticker = document.querySelector(".aicTicker strong")?.textContent?.trim() || "NVDA";
-        const res = await fetch(`/api/market-stream?symbol=${encodeURIComponent(ticker)}`, { cache: "no-store" });
+        const ticker = "NVDA";
+        const params = new URLSearchParams({ symbol: ticker, symbols: symbols.join(",") });
+        const res = await fetch(`/api/market-stream?${params.toString()}`, {
+          cache: "no-store",
+          signal: controller.signal
+        });
         if (!res.ok) throw new Error("Live market data unavailable");
         const data = (await res.json()) as Stream;
         if (active) {
           setStream(data);
+          const next = Object.fromEntries(data.quotes.filter((quote) => quote.price > 0).map((quote) => [quote.symbol, quote]));
+          setQuotes((previous) => ({ ...previous, ...next }));
+          const stamps = data.quotes.map((quote) => quote.quoteTime).filter(Boolean) as string[];
+          if (stamps.length) setLastTick(new Date(stamps.sort().at(-1) as string).toLocaleTimeString());
           setError("");
         }
       } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : "Live market data unavailable");
+        if (active && !(err instanceof DOMException && err.name === "AbortError")) {
+          setError(err instanceof Error ? err.message : "Live market data unavailable");
+        }
       }
     }
     void load();
-    const timer = window.setInterval(load, 60000);
+    const timer = window.setInterval(load, 30000);
     return () => {
       active = false;
-      window.clearInterval(timer);
-    };
-  }, []);
-
-  // quotes for whatever the user chose to display
-  useEffect(() => {
-    let active = true;
-    async function loadQuotes() {
-      const next: Record<string, Quote> = {};
-      for (const symbol of symbols) {
-        try {
-          const res = await fetch(`/api/market-data?symbol=${encodeURIComponent(symbol)}`);
-          if (!res.ok) continue;
-          const d = (await res.json()) as {
-            symbol: string; currentPrice: number; change: number; changePercent: number; quoteTime?: string | null;
-          };
-          next[symbol] = {
-            symbol,
-            price: d.currentPrice,
-            change: d.change,
-            percent: d.changePercent,
-            quoteTime: d.quoteTime ?? null
-          };
-        } catch {
-          /* leave this symbol blank rather than failing the whole rail */
-        }
-      }
-      if (!active) return;
-      setQuotes((prev) => ({ ...prev, ...next }));
-      // show when the exchange last printed, not when we rendered
-      const stamps = Object.values(next).map((q) => q.quoteTime).filter(Boolean) as string[];
-      if (stamps.length) {
-        const newest = stamps.sort().at(-1) as string;
-        setLastTick(new Date(newest).toLocaleTimeString());
-      }
-    }
-    void loadQuotes();
-    const timer = window.setInterval(loadQuotes, 30000);
-    return () => {
-      active = false;
+      controller.abort();
       window.clearInterval(timer);
     };
   }, [symbols]);
@@ -229,7 +209,14 @@ export function PremiumMarketDeck() {
     <div className="premiumMarketDeck" aria-label="Live market ticker and news">
       <div className="premiumTickerHead">
         <span className="liveDot" /> LIVE MARKET TICKER
-        <button type="button" className="deckEditBtn" onClick={() => setEditing((v) => !v)}>
+        <button
+          type="button"
+          className="deckEditBtn"
+          onClick={() => {
+            setEditing((value) => !value);
+            setMatches([]);
+          }}
+        >
           {editing ? "Done" : "Edit"}
         </button>
         <small>{lastTick ? `Last trade ${lastTick}` : ""}</small>
@@ -258,7 +245,10 @@ export function PremiumMarketDeck() {
           <div className="deckAdd">
             <input
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                setMatches([]);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && draft.trim()) void addSymbol(draft.trim().toUpperCase());
               }}
@@ -306,15 +296,6 @@ export function PremiumMarketDeck() {
               <em className={positive ? "up" : "down"}>
                 {positive ? "▲" : "▼"} {Math.abs(item.percent || 0).toFixed(2)}%
               </em>
-              <svg viewBox="0 0 84 22" aria-hidden="true">
-                <path
-                  d={
-                    positive
-                      ? "M1 19 L12 14 L22 17 L34 8 L44 12 L56 5 L67 9 L83 2"
-                      : "M1 4 L12 8 L22 5 L34 14 L44 10 L56 17 L67 13 L83 20"
-                  }
-                />
-              </svg>
             </div>
           );
         })}
