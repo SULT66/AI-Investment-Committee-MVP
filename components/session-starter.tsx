@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 
 type SymbolMatch = { symbol: string; description: string; type: string };
 
@@ -15,7 +14,6 @@ const POPULAR = ["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "SPY"]
  * recommendation about how much to invest.
  */
 export function SessionStarter() {
-  const router = useRouter();
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<SymbolMatch[]>([]);
   const [searching, setSearching] = useState(false);
@@ -88,19 +86,55 @@ export function SessionStarter() {
     }
   }
 
-  function start() {
+  async function start() {
     const symbol = (selected?.symbol ?? query).trim().toUpperCase();
-    if (!symbol) return;
+    // Guard a ref as well as state: React batches updates, so two fast clicks
+    // could both pass a state check, creating - and charging for - two sessions.
+    if (!symbol || starting || inFlight.current) return;
+    inFlight.current = true;
     setStarting(true);
-    const params = new URLSearchParams({
-      ticker: symbol,
-      amount: String(Math.max(1, Number(amount) || 0)),
-      portfolioValue: String(Math.max(1, Number(portfolioValue) || 0)),
-      sector: String(Math.min(100, Math.max(0, Number(sector) || 0))),
-      horizon: String(Math.min(50, Math.max(1, Math.round(Number(horizon) || 1)))),
-      risk
-    });
-    router.push(`/committee?${params.toString()}`);
+    setError("");
+    setExhausted("");
+
+    try {
+      const res = await fetch("/api/v1/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "ANALYZE",
+          ticker: symbol,
+          amount: Math.max(1, Number(amount) || 5000),
+          portfolioValue: Math.max(1, Number(portfolioValue) || 120000),
+          // only send a sector exposure the user actually typed: an assumed one
+          // must not silently become a binding constraint
+          ...(String(sector).trim() !== ""
+            ? { currentSectorExposure: Math.min(100, Math.max(0, Number(sector) || 0)) }
+            : {}),
+          riskTolerance: risk,
+          horizonYears: Math.min(50, Math.max(1, Math.round(Number(horizon) || 5)))
+        })
+      });
+
+      if (res.status === 402) {
+        const body = (await res.json()) as { error?: { message?: string } };
+        setExhausted(body.error?.message ?? "You have used all your free committee reviews.");
+        setStarting(false);
+        inFlight.current = false;
+        return;
+      }
+      if (!res.ok) throw new Error(String(res.status));
+
+      const data = (await res.json()) as { sessionId?: string };
+      if (!data.sessionId) throw new Error("no session id");
+
+      // A hard navigation cannot be interrupted. A client-side push can be, and
+      // losing it strands a session the visitor has already been charged for.
+      window.location.assign(`/live/${data.sessionId}`);
+    } catch {
+      setError("Could not open a session just now. Please try again.");
+      setStarting(false);
+      inFlight.current = false;
+    }
   }
 
   return (
