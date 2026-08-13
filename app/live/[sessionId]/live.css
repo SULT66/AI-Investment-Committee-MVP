@@ -14,9 +14,7 @@
   padding:10px 16px; background:rgba(4,7,14,.94); border-bottom:1px solid var(--line);
   backdrop-filter:blur(8px);
 }
-.deskLogo{font-weight:700; font-size:19px; color:var(--accent); letter-spacing:.5px;
-  text-decoration:none}
-.deskLogo:hover{filter:brightness(1.2)}
+.deskLogo{font-weight:700; font-size:19px; color:var(--accent); letter-spacing:.5px}
 .deskLive{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; color:var(--up)}
 .deskLive.connecting,.deskLive.error{color:var(--warn)}
 .deskLive.closed{color:var(--dim)}
@@ -83,14 +81,8 @@
 }
 
 /* ---------- committee rail ---------- */
-.speakerDetail{margin-top:10px}
-.speakerVote{display:flex; align-items:baseline; gap:10px; margin:0 0 8px;
-  font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; color:var(--dim)}
-.speakerVote span{text-transform:uppercase}
-.speakerVote b{font-size:14px; letter-spacing:.04em}
-.speakerVote em{font-style:normal; font-size:10.5px}
 .speakerRisks{
-  list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px;
+  list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:5px;
   font-size:12.5px; line-height:1.5; color:#A9BACE;
 }
 .speakerRisks li{border-left:2px solid #33455C; padding-left:9px}
@@ -245,14 +237,8 @@
   .deskSpeaker{grid-column:1/2}
   .deskEvidence{grid-column:2/3}
   .deskDecision{grid-column:3/4}
-  .speakerDetail{margin-top:10px}
-.speakerVote{display:flex; align-items:baseline; gap:10px; margin:0 0 8px;
-  font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; color:var(--dim)}
-.speakerVote span{text-transform:uppercase}
-.speakerVote b{font-size:14px; letter-spacing:.04em}
-.speakerVote em{font-style:normal; font-size:10.5px}
-.speakerRisks{
-  list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px;
+  .speakerRisks{
+  list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:5px;
   font-size:12.5px; line-height:1.5; color:#A9BACE;
 }
 .speakerRisks li{border-left:2px solid #33455C; padding-left:9px}
