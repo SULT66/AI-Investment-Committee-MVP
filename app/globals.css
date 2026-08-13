@@ -113,3 +113,20 @@
 /* an exhausted allowance must be explained, not silently fail */
 .starterExhausted{margin-top:14px; border:1px solid rgba(245,184,77,.4); background:rgba(245,184,77,.07);
   padding:13px 15px; font-size:13px; line-height:1.6; color:#F0D6A4}
+
+/* ---- error and not-found pages ---- */
+.errorPage{max-width:640px; margin:0 auto; padding:22vh 24px 60px; text-align:center}
+.errorCode{margin:0 0 14px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px;
+  letter-spacing:.2em; text-transform:uppercase; color:#4da3ff}
+.errorPage h1{margin:0 0 14px; font-size:30px; font-weight:600; line-height:1.25}
+.errorLede{margin:0 auto 28px; max-width:46ch; font-size:15px; line-height:1.65; color:#8A97AA}
+.errorActions{display:flex; gap:12px; justify-content:center; flex-wrap:wrap}
+.errorPrimary{background:#4da3ff; color:#04101F; border:none; padding:13px 26px; font:inherit;
+  font-size:14px; font-weight:600; cursor:pointer; text-decoration:none; display:inline-block}
+.errorPrimary:hover{filter:brightness(1.08)}
+.errorSecondary{background:none; border:1px solid #1b3350; color:#E9EFF7; padding:13px 24px;
+  font:inherit; font-size:14px; text-decoration:none; display:inline-block}
+.errorSecondary:hover{border-color:#4da3ff}
+.errorHint{margin:26px 0 0; font-size:12.5px; color:#66748A; line-height:1.7}
+.errorHint code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px;
+  background:rgba(255,255,255,.05); padding:2px 6px}
