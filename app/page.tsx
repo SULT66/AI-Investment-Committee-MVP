@@ -1,11 +1,16 @@
-import Link from "next/link";
 import { SessionStarter } from "@/components/session-starter";
 import { PremiumMarketDeck } from "@/components/premium-market-deck";
+import { UsageBadge } from "@/components/usage-badge";
 
 /**
- * Positioning: research and decision-support, not investment advice.
- * No personal amounts, no promised outcomes, no "we recommend you buy".
- * The committee produces evidence, scenarios and dissent; the user decides.
+ * Home — handoff §2.2.
+ *
+ * Three entry points: Analyze, Build, Review. Analyze is live; the other two are
+ * shown as what they will be, marked clearly as not yet available rather than
+ * dressed up as working features.
+ *
+ * Positioning stays research and decision support: no personal amounts, no
+ * promised outcomes, the user decides.
  */
 export default function HomePage() {
   return (
@@ -13,7 +18,7 @@ export default function HomePage() {
       <nav className="nav">
         <div className="brand">AIC</div>
         <span>AI Investment Committee</span>
-        <Link className="ghostButton" href="/committee">Open committee</Link>
+        <UsageBadge />
       </nav>
 
       <section className="hero">
@@ -21,11 +26,13 @@ export default function HomePage() {
           <p className="eyebrow">AI INVESTMENT RESEARCH &amp; DECISION SUPPORT</p>
           <h1>Seven analysts argue.<br />You decide.</h1>
           <p className="lede">
-            Independent AI specialists examine a stock from their own angle — fundamentals, valuation,
-            risk, macro, sentiment — and a Red Team argues against the position. You see the evidence,
-            the disagreement and what would change the picture.
+            Independent AI specialists examine a security from their own angle — fundamentals,
+            valuation, risk, macro, sentiment — and a Devil&rsquo;s Advocate argues against the
+            position. You see the evidence, the disagreement and what would change the picture.
           </p>
+
           <SessionStarter />
+
           <p className="microNote">
             Research output only. AIC does not manage money, execute trades, promise results,
             or tell you how much to invest.
@@ -34,27 +41,52 @@ export default function HomePage() {
 
         <div className="previewCard">
           <span className="liveDot">EXAMPLE SESSION</span>
-          <h2>NVDA · research view</h2>
+          <h2>NVDA &middot; research view</h2>
           <div className="decision">STAGED ENTRY</div>
           <div className="metric"><span>Committee agreement</span><strong>5 of 7</strong></div>
           <div className="metric"><span>Your policy limit</span><strong>2.0% of portfolio</strong></div>
-          <div className="metric"><span>Dissent</span><strong>Risk Officer · WAIT</strong></div>
+          <div className="metric"><span>Dissent</span><strong>Risk Agent &middot; WAIT</strong></div>
           <p>
-            Illustrative only. Figures shown in a live session come from market data at the time of
-            the session and from limits you set yourself.
+            Illustrative only. Figures in a live session come from market data at the time of the
+            session and from limits you set yourself.
           </p>
         </div>
       </section>
 
+      <section className="intents">
+        <h2 className="sectionHead">What are you considering?</h2>
+        <div className="intentGrid">
+          <article className="intent live">
+            <span className="intentTag">Available now</span>
+            <h3>Analyze</h3>
+            <p>I know what I want to analyze.</p>
+            <small>A single security examined by the full committee, with evidence and dissent.</small>
+          </article>
+          <article className="intent soon">
+            <span className="intentTag">In development</span>
+            <h3>Build</h3>
+            <p>I have money to invest.</p>
+            <small>An allocation plan by sleeve, with the reasoning behind each holding.</small>
+          </article>
+          <article className="intent soon">
+            <span className="intentTag">In development</span>
+            <h3>Review</h3>
+            <p>I already have a portfolio.</p>
+            <small>Exposure and risk across your positions, with prioritised actions.</small>
+          </article>
+        </div>
+      </section>
+
       <section className="howItWorks">
-        <h2>What the committee produces</h2>
+        <h2 className="sectionHead">What the committee produces</h2>
         <ul>
           <li><b>Evidence</b> — every material claim carries a source and the date it is as of.</li>
-          <li><b>Scenarios</b> — bull, base and bear cases with the assumptions behind each.</li>
-          <li><b>Dissent</b> — members who disagreed are named, with their reasoning.</li>
+          <li><b>Disagreement</b> — members who dissent are named, with their reasoning.</li>
           <li><b>Your own limits</b> — position size is bounded by constraints you define, computed arithmetically.</li>
+          <li><b>Explained confidence</b> — the score is broken down, not asserted.</li>
           <li><b>Conditions</b> — what would have to change for the conclusion to change.</li>
           <li><b>Deferral</b> — when current data is insufficient, the committee says so instead of guessing.</li>
+          <li><b>A permanent report</b> — every session leaves a versioned record you can return to.</li>
         </ul>
       </section>
 
@@ -69,8 +101,7 @@ export default function HomePage() {
         <p>
           Output is generated by AI models from third-party market data and may be incomplete,
           outdated or wrong. Data is provided by Finnhub and is not guaranteed to be accurate or
-          timely. Spoken analysis uses synthetic AI voices; committee members are fictional personas,
-          not real analysts.
+          timely. Committee members are fictional personas, not licensed analysts.
         </p>
         <p>
           Any limits shown are derived from constraints you enter yourself; they describe your own

@@ -1,6 +1,7 @@
 import { AGENTS, CHAIR, SPECIALISTS, type AgentDefinition, type AgentKey } from "./agent-registry";
 import { emit, getSession, updateAgent, updateSession } from "./session-store";
 import { saveReport } from "./report-store";
+import { commitReview, releaseReview } from "./entitlements";
 import { getMarketSnapshot, type MarketSnapshot } from "./market-data";
 import { getCompanyNews, type NewsItem } from "./market-news";
 import { fetchWithTimeout, timeoutFromEnv } from "./fetch-timeout";
@@ -203,7 +204,22 @@ async function callModel(
   return JSON.parse(text) as Record<string, unknown>;
 }
 
-export async function runCommitteeJob(sessionId: string, input: SessionInput): Promise<void> {
+export async function runCommitteeJob(
+  sessionId: string,
+  input: SessionInput,
+  visitorId?: string
+): Promise<void> {
+  /** A review is charged only for a session that actually produced a decision. */
+  const settle = async (charge: boolean, note: string) => {
+    if (!visitorId) return;
+    try {
+      if (charge) await commitReview(visitorId, sessionId, note);
+      else await releaseReview(visitorId, sessionId, note);
+    } catch (err) {
+      console.error("Entitlement settlement failed", sessionId, err);
+    }
+  };
+
   // The committee runs as a background job, so this budget no longer competes with
   // the gateway. It only needs to be short enough that a hung call is cut loose.
   const agentTimeout = timeoutFromEnv("AIC_AGENT_TIMEOUT_MS", 150_000, 20_000, 240_000);
@@ -223,6 +239,7 @@ export async function runCommitteeJob(sessionId: string, input: SessionInput): P
         code: "DATA_UNAVAILABLE",
         message: "Decision deferred — insufficient current data."
       });
+      await settle(false, "no market data");
       return;
     }
 
@@ -385,6 +402,7 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
         error: { code: "QUORUM_NOT_MET", message: "Too few agents responded to reach a decision." }
       });
       await emit(sessionId, "session.failed", { code: "QUORUM_NOT_MET" });
+      await settle(false, "quorum not met");
       return;
     }
 
@@ -496,6 +514,7 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
       url: `/report/${sessionId}`
     });
     await emit(sessionId, "session.completed", { sessionId });
+    await settle(true, "decision issued");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Committee session failed";
     console.error("Committee job failed", sessionId, error);
@@ -503,6 +522,7 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
       await updateSession(sessionId, { status: "FAILED", error: { code: "SESSION_FAILED", message } });
       await emit(sessionId, "session.failed", { code: "SESSION_FAILED", message });
     }
+    await settle(false, "session failed");
   }
 }
 

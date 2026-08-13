@@ -4,6 +4,10 @@ import { randomUUID } from "crypto";
 import { SPECIALISTS, CHAIR } from "@/lib/agent-registry";
 import { createSession, emit } from "@/lib/session-store";
 import { runCommitteeJob } from "@/lib/committee-orchestrator";
+import {
+  VISITOR_COOKIE, getEntitlement, issueVisitorCookie, readVisitorCookie,
+  releaseReview, reserveReview
+} from "@/lib/entitlements";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,8 +42,44 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: { code: "INVALID_REQUEST" } }, { status: 400 });
   }
 
+  // ---- entitlement (handoff §9.2: the server is authoritative) ----
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const rawCookie = cookieHeader
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(`${VISITOR_COOKIE}=`))
+    ?.slice(VISITOR_COOKIE.length + 1);
+
+  let visitorId = readVisitorCookie(rawCookie ? decodeURIComponent(rawCookie) : undefined);
+  let setCookie: string | null = null;
+  if (!visitorId) {
+    const issued = issueVisitorCookie();
+    visitorId = issued.id;
+    // one year, http-only so client script cannot forge a fresh allowance
+    setCookie =
+      `${issued.name}=${encodeURIComponent(issued.value)}; Path=/; Max-Age=31536000; ` +
+      `HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;
+  }
+
   const sessionId = `sess_${randomUUID()}`;
   const agentKeys = [...SPECIALISTS.map((a) => a.key), CHAIR.key];
+
+  const reserved = await reserveReview(visitorId, sessionId);
+  if (!reserved) {
+    const current = await getEntitlement(visitorId);
+    const res = NextResponse.json(
+      {
+        error: {
+          code: "ENTITLEMENT_REQUIRED",
+          message: `You have used all ${current.allowance} free committee reviews.`
+        },
+        entitlement: { plan: current.plan, allowance: current.allowance, remaining: 0 }
+      },
+      { status: 402 }
+    );
+    if (setCookie) res.headers.set("Set-Cookie", setCookie);
+    return res;
+  }
 
   await createSession({ id: sessionId, type: input.type, ticker: input.ticker.toUpperCase(), agentKeys });
   await emit(sessionId, "session.created", {
@@ -49,12 +89,22 @@ export async function POST(request: Request) {
   });
 
   // Fire and forget: the response returns immediately, so no gateway timeout.
-  void runCommitteeJob(sessionId, input).catch((err) => {
+  // The job settles the reservation itself — a platform failure must not consume
+  // one of the client's free reviews (handoff §11.1).
+  void runCommitteeJob(sessionId, input, visitorId).catch(async (err) => {
     console.error("Committee job crashed", sessionId, err);
+    await releaseReview(visitorId as string, sessionId, "job crashed").catch(() => undefined);
   });
 
-  return NextResponse.json(
-    { sessionId, status: "QUEUED", events: `/api/v1/sessions/${sessionId}/events` },
+  const res = NextResponse.json(
+    {
+      sessionId,
+      status: "QUEUED",
+      events: `/api/v1/sessions/${sessionId}/events`,
+      entitlement: { plan: reserved.plan, allowance: reserved.allowance, remaining: reserved.remaining }
+    },
     { status: 202, headers: { "Cache-Control": "no-store" } }
   );
+  if (setCookie) res.headers.set("Set-Cookie", setCookie);
+  return res;
 }

@@ -89,3 +89,27 @@
 .newsEmpty{font-size:12.5px;color:#7e8ca3}
 
 .disclosure{padding-bottom:150px}
+
+/* ---- usage badge ---- */
+.usageBadge{margin-left:auto; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px;
+  letter-spacing:.06em; color:#8fb8e8; border:1px solid #1b3350; padding:6px 13px; border-radius:999px}
+.usageBadge.out{color:#f5b84d; border-color:rgba(245,184,77,.4)}
+.usageBadge.placeholder{border-color:transparent; min-width:150px}
+
+/* ---- entry points ---- */
+.sectionHead{font-size:22px; margin-bottom:18px}
+.intents{max-width:1100px; margin:0 auto; padding:56px 32px 0}
+.intentGrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px}
+.intent{border:1px solid #1b2c44; background:rgba(255,255,255,.02); padding:18px 20px}
+.intent.live{border-color:rgba(77,163,255,.45); background:rgba(77,163,255,.06)}
+.intent.soon{opacity:.62}
+.intentTag{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:9.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:#8fb8e8}
+.intent.live .intentTag{color:#22c55e}
+.intent h3{margin:10px 0 6px; font-size:19px}
+.intent p{margin:0 0 8px; font-size:14px; color:#c3d1e4}
+.intent small{font-size:12.5px; color:#7E8CA3; line-height:1.55}
+
+/* an exhausted allowance must be explained, not silently fail */
+.starterExhausted{margin-top:14px; border:1px solid rgba(245,184,77,.4); background:rgba(245,184,77,.07);
+  padding:13px 15px; font-size:13px; line-height:1.6; color:#F0D6A4}

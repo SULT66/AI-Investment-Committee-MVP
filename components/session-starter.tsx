@@ -23,6 +23,7 @@ export function SessionStarter() {
   const [error, setError] = useState("");
   const [showConstraints, setShowConstraints] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [exhausted, setExhausted] = useState("");
 
   const [amount, setAmount] = useState("5000");
   const [portfolioValue, setPortfolioValue] = useState("120000");
@@ -136,6 +137,12 @@ export function SessionStarter() {
         </button>
       </div>
 
+      {exhausted && (
+        <p className="starterExhausted">
+          {exhausted} Paid plans are not open yet — follow-up questions on sessions you have
+          already run remain free, and your past reports stay available.
+        </p>
+      )}
       {searching && <p className="starterNote">Searching…</p>}
       {error && <p className="starterError">{error}</p>}
 
