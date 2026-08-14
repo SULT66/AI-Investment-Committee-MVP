@@ -115,6 +115,7 @@ export default function HomePage() {
       <footer className="siteFoot">
         <a href="/terms">Terms of Service</a>
         <a href="/privacy">Privacy Policy</a>
+        <a href="/disclosures">Risk &amp; AI Disclosure</a>
         <span>AI-generated research and decision support · not investment advice</span>
       </footer>
 

@@ -46,6 +46,10 @@ type Report = {
   disclosure: string;
 };
 
+const RISK_LINE =
+  "AI-generated research, not a guarantee of investment performance. " +
+  "Investing involves risk, including possible loss of principal.";
+
 const tone = (v: string) =>
   ["buy", "buy_partial"].includes(v) ? "up" : ["avoid", "reduce"].includes(v) ? "down" : "warn";
 
@@ -117,6 +121,7 @@ export function ReportView({ sessionId }: { sessionId: string }) {
             <div><dt>Your policy limit</dt><dd>{report.sizing ? `${report.sizing.maxPositionPercent.toFixed(1)}%` : "—"}</dd></div>
             <div><dt>Committee vote</dt><dd>{report.tally.buy} · {report.tally.hold} · {report.tally.avoid}</dd></div>
           </dl>
+          <p className="riskLine">{RISK_LINE}</p>
           <p className="confidenceNote">{report.confidenceNote}</p>
         </section>
       ) : (
@@ -277,7 +282,14 @@ export function ReportView({ sessionId }: { sessionId: string }) {
         </dl>
       </section>
 
-      <footer className="reportDisclosure">{report.disclosure}</footer>
+      <footer className="reportDisclosure">
+        <p>{report.disclosure}</p>
+        <p className="reportLegalLinks">
+          <a href="/disclosures">Risk &amp; AI disclosure</a>
+          <a href="/terms">Terms of Service</a>
+          <a href="/privacy">Privacy Policy</a>
+        </p>
+      </footer>
     </main>
   );
 }

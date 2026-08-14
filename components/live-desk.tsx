@@ -84,6 +84,11 @@ const FOCUS: Record<string, string> = {
   chairman: "Vote summary · synthesis"
 };
 
+/** Shown wherever a committee conclusion is displayed. */
+const RISK_LINE =
+  "AI-generated research, not a guarantee of investment performance. " +
+  "Investing involves risk, including possible loss of principal.";
+
 const voteTone = (v?: string) =>
   !v ? "" : ["buy", "buy_partial"].includes(v) ? "up" : ["avoid", "reduce"].includes(v) ? "down" : "warn";
 
@@ -472,6 +477,7 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
                 <span className="warn"><b>{tally.hold}</b>HOLD</span>
                 <span className="down"><b>{tally.avoid}</b>AVOID</span>
               </div>
+              <p className="riskLine">{RISK_LINE}</p>
               <p className="pendingNote small">
                 {failure
                   ? failure
@@ -506,6 +512,7 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
               </ul>
               <h4>What would change this</h4>
               <ul className="triggers">{snapshot.decision.reviewTriggers.map((r, i) => <li key={i}>{r}</li>)}</ul>
+              <p className="riskLine">{RISK_LINE}</p>
               <a className="reportCta" href={`/report/${sessionId}`}>View full committee report</a>
             </div>
           )}
@@ -523,7 +530,10 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
       )}
 
       <footer className="deskFoot">
-        AI-generated research and decision support · not investment advice · you decide
+        <a href="/disclosures">Risk &amp; AI disclosure</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <span>AI-generated research · not investment advice · you decide</span>
         {snapshot?.error && <span className="deskError"> · {snapshot.error.message}</span>}
       </footer>
     </div>

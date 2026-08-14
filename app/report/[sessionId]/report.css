@@ -33,6 +33,11 @@
 .decisionMeta{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:14px; margin:18px 0 0}
 .decisionMeta dt{font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; color:var(--dim); text-transform:uppercase}
 .decisionMeta dd{margin:4px 0 0; font-size:17px}
+.riskLine{margin:16px 0 0; padding-top:14px; border-top:1px solid var(--line);
+  font-size:12px; line-height:1.6; color:var(--warn)}
+.reportLegalLinks{margin-top:12px}
+.reportLegalLinks a{color:#8FB8E8; text-decoration:none; margin-right:16px}
+.reportLegalLinks a:hover{text-decoration:underline}
 .confidenceNote{margin:16px 0 0; font-size:11.5px; color:var(--dim); line-height:1.6;
   border-top:1px solid var(--line); padding-top:12px}
 
