@@ -1,3 +1,5 @@
+import { fetchWithTimeout, timeoutFromEnv } from "./fetch-timeout";
+
 export type MarketSnapshot = {
   symbol: string;
   name: string;
@@ -30,6 +32,18 @@ export type SymbolMatch = {
   type: string;
 };
 
+export type MarketQuote = {
+  symbol: string;
+  price: number;
+  change: number;
+  percent: number;
+  high: number;
+  low: number;
+  open: number;
+  previousClose: number;
+  quoteTime: string | null;
+};
+
 const base = "https://finnhub.io/api/v1";
 
 /**
@@ -42,7 +56,7 @@ const base = "https://finnhub.io/api/v1";
 type CacheEntry = { at: number; value: unknown };
 const cache = new Map<string, CacheEntry>();
 const inflight = new Map<string, Promise<unknown>>();
-const QUOTE_TTL_MS = 12_000;
+const QUOTE_TTL_MS = 20_000;
 const PROFILE_TTL_MS = 12 * 60 * 60 * 1000;  // company profile barely changes
 const METRIC_TTL_MS = 60 * 60 * 1000;
 
@@ -53,18 +67,22 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Quotes are worthless if they are two minutes old.
  */
 async function finnhubRaw<T>(path: string, token: string, attempt = 0): Promise<T> {
-  const response = await fetch(`${base}${path}`, {
+  const timeoutMs = timeoutFromEnv("MARKET_DATA_TIMEOUT_MS", 10_000, 3_000, 30_000);
+  const response = await fetchWithTimeout(`${base}${path}`, {
     headers: { "X-Finnhub-Token": token },
     cache: "no-store"
-  });
+  }, timeoutMs, "Finnhub request");
 
-  // 429 means the plan's request budget is exhausted for this minute.
-  // One short retry smooths bursts; beyond that, fail honestly.
-  if (response.status === 429 && attempt < 1) {
-    await sleep(900);
+  // 429 means the per-minute request budget is exhausted. The window is short, so
+  // backing off and retrying recovers the call instead of failing the session.
+  if (response.status === 429 && attempt < 4) {
+    const waitMs = Math.min(8000, 1200 * Math.pow(2, attempt)) + Math.random() * 400;
+    await sleep(waitMs);
     return finnhubRaw<T>(path, token, attempt + 1);
   }
-  if (response.status === 429) throw new Error("Finnhub rate limit reached (429)");
+  if (response.status === 429) {
+    throw new Error("Market data rate limit reached — too many requests in the last minute");
+  }
   if (!response.ok) throw new Error(`Finnhub request failed: ${response.status}`);
   return response.json() as Promise<T>;
 }
@@ -104,7 +122,11 @@ function classify(symbol: string): "stock" | "crypto" | "forex" {
 
 /** Accepts equities, ETFs, international listings (SAP.DE), crypto and forex pairs. */
 export function normalizeSymbol(input: string): string {
-  return input.trim().toUpperCase().replace(/\s+/g, "");
+  const symbol = input.trim().toUpperCase().replace(/\s+/g, "");
+  if (!/^[A-Z0-9][A-Z0-9.:_-]{0,31}$/.test(symbol)) {
+    throw new Error("Invalid market symbol");
+  }
+  return symbol;
 }
 
 /**
@@ -136,39 +158,67 @@ export async function searchSymbols(query: string, limit = 12): Promise<SymbolMa
   }
 }
 
+export async function getMarketQuote(symbolInput: string): Promise<MarketQuote> {
+  const token = process.env.FINNHUB_API_KEY;
+  if (!token) throw new Error("FINNHUB_API_KEY is not configured");
+  const symbol = normalizeSymbol(symbolInput);
+  const quote = await finnhub<{
+    c: number; d: number; dp: number; h: number; l: number; o: number; pc: number; t: number;
+  }>(`/quote?symbol=${encodeURIComponent(symbol)}`, token);
+
+  if (!quote.c || quote.c <= 0) throw new Error(`No market data found for ${symbol}`);
+
+  return {
+    symbol,
+    price: quote.c,
+    change: quote.d,
+    percent: quote.dp,
+    high: quote.h,
+    low: quote.l,
+    open: quote.o,
+    previousClose: quote.pc,
+    quoteTime: quote.t ? new Date(quote.t * 1000).toISOString() : null
+  };
+}
+
 export async function getMarketSnapshot(symbolInput: string): Promise<MarketSnapshot> {
   const token = process.env.FINNHUB_API_KEY;
   if (!token) throw new Error("FINNHUB_API_KEY is not configured");
   const symbol = normalizeSymbol(symbolInput);
   const assetType = classify(symbol);
 
-  // The quote is required. Profile and metrics exist only for equities, so a
-  // failure there must not kill a crypto or forex lookup.
-  const quote = await finnhub<{
-    c: number; d: number; dp: number; h: number; l: number; o: number; pc: number; t: number;
-  }>(`/quote?symbol=${encodeURIComponent(symbol)}`, token);
-
-  if (!quote.c || quote.c <= 0) {
-    throw new Error(`No market data found for ${symbol}`);
-  }
-
   let profile: {
     name?: string; exchange?: string; finnhubIndustry?: string; currency?: string; marketCapitalization?: number;
   } = {};
   let metric: Record<string, unknown> = {};
 
+  // Quote, profile and metrics are independent upstream calls. Running them
+  // together saves an entire network round trip on every committee session.
+  const quotePromise = getMarketQuote(symbol);
   if (assetType === "stock") {
-    const [p, f] = await Promise.allSettled([
+    const [quoteResult, p, f] = await Promise.allSettled([
+      quotePromise,
       finnhub<typeof profile>(`/stock/profile2?symbol=${encodeURIComponent(symbol)}`, token, PROFILE_TTL_MS),
       finnhub<{ metric?: Record<string, unknown> }>(
         `/stock/metric?symbol=${encodeURIComponent(symbol)}&metric=all`, token, METRIC_TTL_MS
       )
     ]);
+    if (quoteResult.status === "rejected") throw quoteResult.reason;
     if (p.status === "fulfilled") profile = p.value ?? {};
     if (f.status === "fulfilled") metric = f.value?.metric ?? {};
+    return buildSnapshot(symbol, assetType, quoteResult.value, profile, metric);
   }
 
-  const quoteTime = quote.t ? new Date(quote.t * 1000).toISOString() : null;
+  return buildSnapshot(symbol, assetType, await quotePromise, profile, metric);
+}
+
+function buildSnapshot(
+  symbol: string,
+  assetType: MarketSnapshot["assetType"],
+  quote: MarketQuote,
+  profile: { name?: string; exchange?: string; finnhubIndustry?: string; currency?: string; marketCapitalization?: number },
+  metric: Record<string, unknown>
+): MarketSnapshot {
 
   return {
     symbol,
@@ -176,14 +226,17 @@ export async function getMarketSnapshot(symbolInput: string): Promise<MarketSnap
     exchange: profile.exchange || (assetType === "crypto" ? "Crypto" : assetType === "forex" ? "FX" : ""),
     industry: profile.finnhubIndustry || "",
     currency: profile.currency || "USD",
-    currentPrice: quote.c,
-    change: quote.d,
-    changePercent: quote.dp,
-    open: quote.o,
-    high: quote.h,
-    low: quote.l,
-    previousClose: quote.pc,
-    marketCap: numberOrNull(profile.marketCapitalization),
+    currentPrice: quote.price,
+    change: quote.change,
+    changePercent: quote.percent,
+    open: quote.open,
+    high: quote.high,
+    low: quote.low,
+    previousClose: quote.previousClose,
+    // Finnhub profile2 reports marketCapitalization in millions.
+    marketCap: numberOrNull(profile.marketCapitalization)
+      ? Number(profile.marketCapitalization) * 1_000_000
+      : null,
     peTTM: numberOrNull(metric.peTTM),
     epsTTM: numberOrNull(metric.epsTTM),
     beta: numberOrNull(metric.beta),
@@ -192,7 +245,7 @@ export async function getMarketSnapshot(symbolInput: string): Promise<MarketSnap
     // when this snapshot was taken
     timestamp: new Date().toISOString(),
     // when the exchange actually printed it
-    quoteTime,
+    quoteTime: quote.quoteTime,
     assetType,
     source: "Finnhub"
   };

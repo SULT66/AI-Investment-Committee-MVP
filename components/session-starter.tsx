@@ -71,8 +71,8 @@ export function SessionStarter() {
       if (!res.ok) {
         setQuery(match.symbol);
         setError(
-          `No live quote available for "${match.symbol}". It may be outside the current market ` +
-          `data coverage. Large US-listed symbols work reliably.`
+          `Could not get a live quote for "${match.symbol}" just now. The market data feed may ` +
+          `be busy — wait a moment and try again.`
         );
         return;
       }

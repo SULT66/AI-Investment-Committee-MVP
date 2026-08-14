@@ -236,9 +236,9 @@ export async function runCommitteeJob(
         error: {
           code: "DATA_UNAVAILABLE",
           message:
-            `The market data provider returned no quote for ${input.ticker}. This usually means ` +
-            `the symbol is outside the current data plan's coverage rather than that it does not ` +
-            `exist. Large US-listed names work reliably.`
+            `Live market data for ${input.ticker} was not available just now. This is usually a ` +
+            `temporary limit on the market data feed rather than a problem with the symbol — ` +
+            `waiting a minute and starting again normally works.`
         }
       });
       await emit(sessionId, "session.failed", {
