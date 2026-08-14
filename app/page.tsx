@@ -112,6 +112,12 @@ export default function HomePage() {
         </p>
       </section>
 
+      <footer className="siteFoot">
+        <a href="/terms">Terms of Service</a>
+        <a href="/privacy">Privacy Policy</a>
+        <span>AI-generated research and decision support · not investment advice</span>
+      </footer>
+
       <PremiumMarketDeck />
     </main>
   );

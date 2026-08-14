@@ -1,0 +1,39 @@
+/* Shared styling for the legal pages. Optimised for reading and for printing. */
+.legal{
+  --ink:#E9EFF7; --dim:#8A97AA; --line:#18222F; --accent:#4DA3FF; --warn:#F5B84D;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  max-width:820px; margin:0 auto; padding:48px 24px 90px; color:var(--ink);
+  font-size:15px; line-height:1.75;
+}
+.legalHead{padding-bottom:22px; border-bottom:1px solid var(--line); margin-bottom:8px}
+.legalKicker{margin:0; font-family:var(--mono); font-size:10.5px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--accent)}
+.legalKicker a{color:var(--accent); text-decoration:none}
+.legalKicker a:hover{text-decoration:underline}
+.legal h1{margin:8px 0 6px; font-size:31px; font-weight:600; line-height:1.2}
+.legalDates{margin:0; font-size:12.5px; color:var(--dim)}
+.legal h2{margin:34px 0 10px; font-size:18px; font-weight:600}
+.legal h3{margin:22px 0 6px; font-size:15px; font-weight:600; color:#C3D1E4}
+.legal p{margin:0 0 14px}
+.legal ul{margin:0 0 16px; padding-left:20px}
+.legal li{margin-bottom:8px}
+.legal a{color:#8FB8E8}
+.legal code{font-family:var(--mono); font-size:12.5px; background:rgba(255,255,255,.05); padding:2px 6px}
+.legal table{width:100%; border-collapse:collapse; margin:0 0 18px; font-size:13.5px}
+.legal th,.legal td{text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+.legal th{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim)}
+
+/* Anything the operator must complete before publishing. Impossible to miss. */
+.legalDraft{border:1px solid var(--warn); background:rgba(245,184,77,.08); padding:16px 18px; margin:0 0 28px}
+.legalDraft h2{margin:0 0 8px; font-size:14px; color:var(--warn)}
+.legalDraft p{margin:0 0 8px; font-size:13px; line-height:1.65; color:#F0D6A4}
+.legalDraft p:last-child{margin:0}
+.fill{background:rgba(245,184,77,.16); border-bottom:1px dashed var(--warn); padding:1px 5px;
+  font-family:var(--mono); font-size:12.5px; color:#F5CE8A}
+.legalFoot{margin-top:40px; padding-top:20px; border-top:1px solid var(--line); font-size:12.5px; color:var(--dim)}
+.legalFoot a{margin-right:16px}
+@media print{
+  .legal{max-width:none; color:#000}
+  .legalDraft{border-color:#999}
+  .legal a{color:#000; text-decoration:none}
+}

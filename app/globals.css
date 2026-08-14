@@ -134,3 +134,11 @@
 .errorHint{margin:26px 0 0; font-size:12.5px; color:#66748A; line-height:1.7}
 .errorHint code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px;
   background:rgba(255,255,255,.05); padding:2px 6px}
+
+/* ---- site footer ---- */
+.siteFoot{max-width:1100px; margin:0 auto; padding:8px 32px 150px; display:flex; gap:20px;
+  flex-wrap:wrap; align-items:center; font-size:12.5px; color:#66748A}
+.siteFoot a{color:#8fb8e8; text-decoration:none}
+.siteFoot a:hover{text-decoration:underline}
+.siteFoot span{margin-left:auto}
+@media(max-width:640px){ .siteFoot span{margin-left:0} }
