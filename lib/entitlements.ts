@@ -21,7 +21,7 @@ export const FREE_LIFETIME_REVIEWS = Number(process.env.AIC_FREE_LIFETIME_REVIEW
 export type LedgerEntry = {
   id: string;
   at: string;
-  type: "reserve" | "commit" | "release";
+  type: "reserve" | "commit" | "release" | "acknowledge";
   sessionId: string;
   units: number;
   note?: string;
@@ -127,6 +127,7 @@ function summarise(visitorId: string, ledger: LedgerEntry[]): Entitlement {
   const reservations = new Map<string, LedgerEntry>();
 
   for (const entry of ledger) {
+    if (entry.type === "acknowledge") continue;   // not a usage event
     if (entry.type === "reserve") reservations.set(entry.sessionId, entry);
     if (entry.type === "commit") committed.add(entry.sessionId);
     if (entry.type === "release") released.add(entry.sessionId);
@@ -152,6 +153,38 @@ function summarise(visitorId: string, ledger: LedgerEntry[]): Entitlement {
 
 export async function getEntitlement(visitorId: string): Promise<Entitlement> {
   return summarise(visitorId, await readLedger(visitorId));
+}
+
+/**
+ * Whether this visitor has accepted the risk disclosure, and when.
+ *
+ * The launch checklist requires the disclosure to be accepted rather than merely
+ * displayed, so the acceptance is recorded server-side with its timestamp and the
+ * version of the text that was shown.
+ */
+export async function getAcknowledgement(
+  visitorId: string
+): Promise<{ accepted: boolean; at: string | null; version: string | null }> {
+  const entry = (await readLedger(visitorId)).find((e) => e.type === "acknowledge");
+  return entry
+    ? { accepted: true, at: entry.at, version: entry.note ?? null }
+    : { accepted: false, at: null, version: null };
+}
+
+export async function recordAcknowledgement(visitorId: string, version: string): Promise<void> {
+  await withLock(visitorId, async () => {
+    const ledger = await readLedger(visitorId);
+    if (ledger.some((e) => e.type === "acknowledge")) return;   // idempotent
+    ledger.push({
+      id: randomUUID(),
+      at: new Date().toISOString(),
+      type: "acknowledge",
+      sessionId: "",
+      units: 0,
+      note: version
+    });
+    await writeLedger(visitorId, ledger);
+  });
 }
 
 /** Reserve one review. Returns null when the allowance is exhausted. */

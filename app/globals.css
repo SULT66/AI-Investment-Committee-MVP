@@ -142,3 +142,19 @@
 .siteFoot a:hover{text-decoration:underline}
 .siteFoot span{margin-left:auto}
 @media(max-width:640px){ .siteFoot span{margin-left:0} }
+
+/* ---- disclosure acknowledgement ---- */
+.ackWrap{position:fixed; inset:0; z-index:90; background:rgba(2,5,10,.78); display:grid;
+  place-items:center; padding:20px}
+.ackCard{width:min(560px,100%); max-height:88vh; overflow-y:auto; background:#0A111B;
+  border:1px solid #1b3350; padding:26px 28px; color:#E9EFF7}
+.ackCard h2{margin:0 0 16px; font-size:19px; font-weight:600}
+.ackPoints{list-style:none; margin:0 0 18px; padding:0; display:flex; flex-direction:column; gap:12px}
+.ackPoints li{font-size:13.5px; line-height:1.6; color:#C3D1E4; border-left:2px solid #234764; padding-left:12px}
+.ackPoints strong{color:#E9EFF7}
+.ackLinks{margin:0 0 18px; font-size:12.5px; color:#7E8CA3}
+.ackLinks a{color:#8fb8e8}
+.ackError{margin:0 0 12px; font-size:12.5px; color:#EF4444}
+.ackAccept{width:100%; background:#4DA3FF; color:#04101F; border:none; padding:13px 20px;
+  font:inherit; font-size:14px; font-weight:600; cursor:pointer}
+.ackAccept:disabled{opacity:.5; cursor:default}

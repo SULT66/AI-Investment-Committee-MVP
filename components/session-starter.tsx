@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { DisclosureGate } from "./disclosure-gate";
 
 type SymbolMatch = { symbol: string; description: string; type: string };
 
@@ -23,6 +24,9 @@ export function SessionStarter() {
   const [starting, setStarting] = useState(false);
   const [exhausted, setExhausted] = useState("");
   const inFlight = useRef(false);
+  const [needsAck, setNeedsAck] = useState(false);
+  const acknowledged = useRef(false);
+  const onAccepted = useCallback(() => { acknowledged.current = true; setNeedsAck(false); }, []);
 
   const [amount, setAmount] = useState("5000");
   const [portfolioValue, setPortfolioValue] = useState("120000");
@@ -111,6 +115,13 @@ export function SessionStarter() {
     // Guard a ref as well as state: React batches updates, so two fast clicks
     // could both pass a state check, creating - and charging for - two sessions.
     if (!symbol || starting || inFlight.current) return;
+
+    // The disclosure must be accepted before a review is run, not merely shown.
+    if (!acknowledged.current) {
+      setNeedsAck(true);
+      return;
+    }
+
     inFlight.current = true;
     setStarting(true);
     setError("");
@@ -159,6 +170,9 @@ export function SessionStarter() {
 
   return (
     <div className="starter">
+      {/* Mounted invisibly: it checks acceptance on load and only appears when needed. */}
+      <DisclosureGate onAccepted={onAccepted} />
+      {needsAck && null}
       <label className="starterLabel" htmlFor="tickerSearch">
         Which instrument should the committee examine?
       </label>
