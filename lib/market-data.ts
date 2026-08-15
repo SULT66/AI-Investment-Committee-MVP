@@ -44,6 +44,8 @@ export type MarketQuote = {
   quoteTime: string | null;
 };
 
+import { record } from "./telemetry";
+
 const base = "https://finnhub.io/api/v1";
 
 /**
@@ -67,6 +69,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Quotes are worthless if they are two minutes old.
  */
 async function finnhubRaw<T>(path: string, token: string, attempt = 0): Promise<T> {
+  const started = Date.now();
   const timeoutMs = timeoutFromEnv("MARKET_DATA_TIMEOUT_MS", 10_000, 3_000, 30_000);
   const response = await fetchWithTimeout(`${base}${path}`, {
     headers: { "X-Finnhub-Token": token },
@@ -81,9 +84,16 @@ async function finnhubRaw<T>(path: string, token: string, attempt = 0): Promise<
     return finnhubRaw<T>(path, token, attempt + 1);
   }
   if (response.status === 429) {
+    void record({ kind: "provider.failed", provider: "finnhub", code: "RATE_LIMIT",
+      durationMs: Date.now() - started });
     throw new Error("Market data rate limit reached — too many requests in the last minute");
   }
-  if (!response.ok) throw new Error(`Finnhub request failed: ${response.status}`);
+  if (!response.ok) {
+    void record({ kind: "provider.failed", provider: "finnhub", code: `HTTP_${response.status}`,
+      durationMs: Date.now() - started });
+    throw new Error(`Finnhub request failed: ${response.status}`);
+  }
+  void record({ kind: "provider.call", provider: "finnhub", durationMs: Date.now() - started });
   return response.json() as Promise<T>;
 }
 

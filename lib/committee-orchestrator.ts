@@ -2,6 +2,7 @@ import { AGENTS, CHAIR, SPECIALISTS, type AgentDefinition, type AgentKey } from 
 import { emit, getSession, updateAgent, updateSession } from "./session-store";
 import { saveReport } from "./report-store";
 import { commitReview, releaseReview } from "./entitlements";
+import { pruneTelemetry, record } from "./telemetry";
 import { getMarketSnapshot, type MarketSnapshot } from "./market-data";
 import { getCompanyNews, type NewsItem } from "./market-news";
 import { fetchWithTimeout, timeoutFromEnv } from "./fetch-timeout";
@@ -161,6 +162,9 @@ function newsBlock(news: NewsItem[]) {
     : "The data provider returned no recent company news.";
 }
 
+/** Token usage from the most recent model call, read immediately after it returns. */
+let lastUsage: { inputTokens: number; outputTokens: number } = { inputTokens: 0, outputTokens: 0 };
+
 async function callModel(
   prompt: string,
   schema: unknown,
@@ -180,6 +184,7 @@ async function callModel(
     body.tools = [{ type: "web_search", search_context_size: "low" }];
   }
 
+  const providerStarted = Date.now();
   const res = await fetchWithTimeout(
     "https://api.openai.com/v1/responses",
     {
@@ -191,16 +196,27 @@ async function callModel(
     `Agent ${schemaName}`
   );
 
-  if (!res.ok) throw new Error(`${schemaName} upstream ${res.status}`);
+  if (!res.ok) {
+    void record({ kind: "provider.failed", provider: "openai", code: `HTTP_${res.status}`,
+      durationMs: Date.now() - providerStarted });
+    throw new Error(`${schemaName} upstream ${res.status}`);
+  }
+  void record({ kind: "provider.call", provider: "openai", durationMs: Date.now() - providerStarted });
 
   const data = (await res.json()) as {
     output_text?: string;
     output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
+    usage?: { input_tokens?: number; output_tokens?: number };
   };
   const text =
     data.output_text ??
     data.output?.flatMap((i) => i.content ?? []).find((p) => p.type === "output_text")?.text;
   if (!text) throw new Error(`${schemaName} returned no text`);
+
+  lastUsage = {
+    inputTokens: data.usage?.input_tokens ?? 0,
+    outputTokens: data.usage?.output_tokens ?? 0
+  };
   return JSON.parse(text) as Record<string, unknown>;
 }
 
@@ -225,6 +241,10 @@ export async function runCommitteeJob(
   const agentTimeout = timeoutFromEnv("AIC_AGENT_TIMEOUT_MS", 150_000, 20_000, 240_000);
   const languageName = LANGUAGE_NAMES[input.language] ?? "English";
 
+  const sessionStarted = Date.now();
+  void record({ kind: "session.started", sessionId });
+  void pruneTelemetry();
+
   try {
     await updateSession(sessionId, { status: "RESEARCHING" });
     await emit(sessionId, "session.research.progress", { stage: "market_data" });
@@ -245,6 +265,8 @@ export async function runCommitteeJob(
         code: "DATA_UNAVAILABLE",
         message: "Decision deferred — insufficient current data."
       });
+      void record({ kind: "session.failed", sessionId, code: "DATA_UNAVAILABLE",
+        durationMs: Date.now() - sessionStarted });
       await settle(false, "no market data");
       return;
     }
@@ -332,6 +354,7 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
           topics: agent.evidenceTopics
         });
 
+        const agentStarted = Date.now();
         try {
           const raw = await callModel(
             `${agent.persona}\n\n${rules}\n\n${context}\n\nGive your vote on this proposal.`,
@@ -340,6 +363,11 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
             agent.webSearch,
             agentTimeout
           );
+          void record({
+            kind: "agent.completed", sessionId, agentKey: agent.key,
+            durationMs: Date.now() - agentStarted,
+            inputTokens: lastUsage.inputTokens, outputTokens: lastUsage.outputTokens
+          });
 
           const opinion = {
             vote: String(raw.vote),
@@ -377,6 +405,11 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
           return { agent, opinion };
         } catch (error) {
           const timedOut = error instanceof Error && error.name === "UpstreamTimeoutError";
+          void record({
+            kind: "agent.failed", sessionId, agentKey: agent.key,
+            durationMs: Date.now() - agentStarted,
+            code: timedOut ? "AGENT_TIMEOUT" : "AGENT_FAILED"
+          });
           await updateAgent(sessionId, agent.key, { status: timedOut ? "timeout" : "failed" });
           await emit(sessionId, "agent.failed", {
             agentId: agent.key,
@@ -408,6 +441,8 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
         error: { code: "QUORUM_NOT_MET", message: "Too few agents responded to reach a decision." }
       });
       await emit(sessionId, "session.failed", { code: "QUORUM_NOT_MET" });
+      void record({ kind: "session.failed", sessionId, code: "QUORUM_NOT_MET",
+        durationMs: Date.now() - sessionStarted });
       await settle(false, "quorum not met");
       return;
     }
@@ -426,6 +461,7 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
       )
       .join("\n");
 
+    const chairStarted = Date.now();
     const chairRaw = await callModel(
       `${CHAIR.persona}
 
@@ -446,6 +482,12 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
       false,
       agentTimeout
     );
+
+    void record({
+      kind: "agent.completed", sessionId, agentKey: CHAIR.key,
+      durationMs: Date.now() - chairStarted,
+      inputTokens: lastUsage.inputTokens, outputTokens: lastUsage.outputTokens
+    });
 
     const supporting = opinions.filter((o) => o.opinion.vote === chairRaw.decision).length;
     const confidence = explainConfidence({
@@ -520,6 +562,7 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
       url: `/report/${sessionId}`
     });
     await emit(sessionId, "session.completed", { sessionId });
+    void record({ kind: "session.completed", sessionId, durationMs: Date.now() - sessionStarted });
     await settle(true, "decision issued");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Committee session failed";
@@ -528,6 +571,8 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
       await updateSession(sessionId, { status: "FAILED", error: { code: "SESSION_FAILED", message } });
       await emit(sessionId, "session.failed", { code: "SESSION_FAILED", message });
     }
+    void record({ kind: "session.failed", sessionId, code: "SESSION_FAILED",
+      durationMs: Date.now() - sessionStarted });
     await settle(false, "session failed");
   }
 }
