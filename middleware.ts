@@ -29,16 +29,19 @@ export async function middleware(request: NextRequest) {
 
   const { pathname, searchParams } = request.nextUrl;
 
-  // The gate page AND the endpoint that verifies the code must stay reachable.
-  // Gating /api/access created a loop: the form posts the code, the middleware
-  // redirects that post back to the form, and no code could ever be accepted.
-  if (
-    pathname === "/access" ||
-    pathname === "/api/access" ||
-    pathname.startsWith("/_next") ||
-    pathname === "/favicon.ico" ||
-    pathname === "/robots.txt"
-  ) {
+  /*
+   * Only two endpoints may bypass the gate, and each for a specific reason:
+   *   /api/access  verifies the code itself — gating it created a loop in which
+   *                no code could ever be accepted;
+   *   /api/v1/ops  carries its own token and is called from a terminal, where an
+   *                HTML redirect is useless.
+   *
+   * Everything else stays behind the gate on purpose. /api/v1/sessions spends
+   * money on every call, so exempting all of /api/ would leave the expensive part
+   * of the product open to anyone who knows the URL.
+   */
+  const openPaths = ["/access", "/api/access", "/api/v1/ops", "/favicon.ico", "/robots.txt"];
+  if (openPaths.includes(pathname) || pathname.startsWith("/_next")) {
     return NextResponse.next();
   }
 
