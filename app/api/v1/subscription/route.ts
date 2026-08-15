@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   VISITOR_COOKIE, getEntitlement, issueVisitorCookie, readVisitorCookie
 } from "@/lib/entitlements";
+import { accountFromRequest } from "@/lib/accounts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,8 @@ export async function GET(request: Request) {
     .find((c) => c.startsWith(`${VISITOR_COOKIE}=`))
     ?.slice(VISITOR_COOKIE.length + 1);
 
-  const existing = readVisitorCookie(raw ? decodeURIComponent(raw) : undefined);
+  const account = await accountFromRequest(request);
+  const existing = account?.id ?? readVisitorCookie(raw ? decodeURIComponent(raw) : undefined);
 
   if (!existing) {
     // A first-time visitor gets an identity now so the balance is stable from
@@ -37,6 +39,7 @@ export async function GET(request: Request) {
   const entitlement = await getEntitlement(existing);
   return NextResponse.json(
     {
+      account: account ? { email: account.email } : null,
       plan: entitlement.plan,
       allowance: entitlement.allowance,
       used: entitlement.used,

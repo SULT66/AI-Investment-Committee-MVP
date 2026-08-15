@@ -94,6 +94,8 @@
 .usageBadge{margin-left:auto; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px;
   letter-spacing:.06em; color:#8fb8e8; border:1px solid #1b3350; padding:6px 13px; border-radius:999px;
   white-space:nowrap; flex:none}
+.usageBadge{text-decoration:none}
+.usageBadge:hover{border-color:#4da3ff}
 .usageBadge.out{color:#f5b84d; border-color:rgba(245,184,77,.4)}
 .usageBadge.placeholder{border-color:transparent; min-width:118px}
 @media(max-width:560px){

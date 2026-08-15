@@ -8,6 +8,7 @@ import {
   VISITOR_COOKIE, getEntitlement, issueVisitorCookie, readVisitorCookie,
   releaseReview, reserveReview
 } from "@/lib/entitlements";
+import { accountFromRequest } from "@/lib/accounts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,7 +51,10 @@ export async function POST(request: Request) {
     .find((c) => c.startsWith(`${VISITOR_COOKIE}=`))
     ?.slice(VISITOR_COOKIE.length + 1);
 
-  let visitorId = readVisitorCookie(rawCookie ? decodeURIComponent(rawCookie) : undefined);
+  // A signed-in account owns its allowance; clearing cookies no longer resets it.
+  const account = await accountFromRequest(request);
+
+  let visitorId = account?.id ?? readVisitorCookie(rawCookie ? decodeURIComponent(rawCookie) : undefined);
   let setCookie: string | null = null;
   if (!visitorId) {
     const issued = issueVisitorCookie();

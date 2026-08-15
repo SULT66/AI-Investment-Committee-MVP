@@ -82,8 +82,26 @@ async function ensureDir(): Promise<string> {
   return dir;
 }
 
-function fileFor(dir: string, visitorId: string): string {
-  return join(dir, `${visitorId}.json`);
+/**
+ * The ledger key. A signed-in account owns its allowance; an anonymous visitor
+ * owns it only until they register, at which point the trial usage is carried
+ * across so signing up neither resets the allowance nor loses it.
+ */
+function fileFor(dir: string, ledgerId: string): string {
+  const safe = /^[A-Za-z0-9_-]{1,80}$/.test(ledgerId) ? ledgerId : "invalid";
+  return join(dir, `${safe}.json`);
+}
+
+/** Moves an anonymous visitor's usage onto a new account, once. */
+export async function adoptVisitorLedger(accountId: string, visitorId: string | null): Promise<void> {
+  if (!visitorId) return;
+  await withLock(accountId, async () => {
+    const existing = await readLedger(accountId);
+    if (existing.length) return;                    // account already has history
+    const carried = await readLedger(visitorId);
+    if (!carried.length) return;
+    await writeLedger(accountId, carried);
+  });
 }
 
 async function readLedger(visitorId: string): Promise<LedgerEntry[]> {

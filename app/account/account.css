@@ -1,0 +1,30 @@
+.account{max-width:440px; margin:0 auto; padding:64px 24px 90px; color:#E9EFF7}
+.account h1{margin:0 0 10px; font-size:26px; font-weight:600}
+.accountLede{margin:0 0 26px; font-size:14px; line-height:1.65; color:#8A97AA}
+.accountForm{display:flex; flex-direction:column; gap:14px}
+.accountForm label{display:flex; flex-direction:column; gap:6px; font-size:12px; color:#8fb8e8}
+.accountForm input{background:rgba(255,255,255,.04); border:1px solid #1b3350; color:#E9EFF7;
+  padding:12px 14px; font:inherit; font-size:14px}
+.accountForm input:focus{outline:none; border-color:#4DA3FF}
+.accountHint{margin:0; font-size:12px; color:#66748A}
+.accountError{margin:0; font-size:12.5px; color:#EF4444}
+.accountPrimary{background:#4DA3FF; color:#04101F; border:none; padding:13px 22px; font:inherit;
+  font-size:14px; font-weight:600; cursor:pointer; text-align:center; text-decoration:none;
+  display:inline-block}
+.accountPrimary:disabled{opacity:.5; cursor:default}
+.accountSecondary{background:none; border:1px solid #1b3350; color:#E9EFF7; padding:13px 22px;
+  font:inherit; font-size:14px; cursor:pointer}
+.accountSecondary:hover{border-color:#4DA3FF}
+.accountWarning{margin:22px 0 0; border:1px solid rgba(245,184,77,.4); background:rgba(245,184,77,.07);
+  padding:13px 15px; font-size:12.5px; line-height:1.6; color:#F0D6A4}
+.accountSwitch{margin:22px 0 0; font-size:13px; color:#8A97AA}
+.accountSwitch button{background:none; border:none; color:#8fb8e8; font:inherit; font-size:13px;
+  cursor:pointer; padding:0; text-decoration:underline}
+.accountNote{margin:20px 0 0; font-size:12px; line-height:1.6; color:#66748A}
+.accountNote a{color:#8fb8e8}
+.accountFacts{display:flex; flex-direction:column; gap:12px; margin:0 0 22px}
+.accountFacts div{display:flex; justify-content:space-between; gap:16px; border-bottom:1px solid #18222F;
+  padding-bottom:10px}
+.accountFacts dt{font-size:12px; color:#8A97AA}
+.accountFacts dd{margin:0; font-size:14px}
+.accountActions{display:flex; gap:10px; flex-wrap:wrap}

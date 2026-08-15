@@ -9,7 +9,11 @@ import { useEffect, useState } from "react";
  * server enforces it independently (handoff §9.2). Nothing here can grant a review.
  */
 export function UsageBadge() {
-  const [state, setState] = useState<{ remaining: number; allowance: number } | null>(null);
+  const [state, setState] = useState<{
+    remaining: number;
+    allowance: number;
+    account?: { email: string } | null;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -17,7 +21,9 @@ export function UsageBadge() {
       try {
         const res = await fetch("/api/v1/subscription", { cache: "no-store" });
         if (!res.ok) return;
-        const data = (await res.json()) as { remaining: number; allowance: number };
+        const data = (await res.json()) as {
+          remaining: number; allowance: number; account?: { email: string } | null;
+        };
         if (active) setState(data);
       } catch {
         /* the badge is informational; failing quietly is fine */
@@ -29,9 +35,15 @@ export function UsageBadge() {
   if (!state) return <span className="usageBadge placeholder" aria-hidden="true" />;
 
   const out = state.remaining === 0;
+  const label = state.account
+    ? `${state.remaining}/${state.allowance} reviews · ${state.account.email}`
+    : out
+      ? "No free reviews · sign in"
+      : `${state.remaining}/${state.allowance} free reviews`;
+
   return (
-    <span className={out ? "usageBadge out" : "usageBadge"}>
-      {out ? "No free reviews" : `${state.remaining}/${state.allowance} free reviews`}
-    </span>
+    <a className={out ? "usageBadge out" : "usageBadge"} href="/account" title="Account and allowance">
+      {label}
+    </a>
   );
 }
