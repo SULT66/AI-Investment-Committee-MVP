@@ -29,8 +29,16 @@ export async function middleware(request: NextRequest) {
 
   const { pathname, searchParams } = request.nextUrl;
 
-  // The gate page itself, and the assets it needs, must stay reachable.
-  if (pathname === "/access" || pathname.startsWith("/_next") || pathname === "/favicon.ico") {
+  // The gate page AND the endpoint that verifies the code must stay reachable.
+  // Gating /api/access created a loop: the form posts the code, the middleware
+  // redirects that post back to the form, and no code could ever be accepted.
+  if (
+    pathname === "/access" ||
+    pathname === "/api/access" ||
+    pathname.startsWith("/_next") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/robots.txt"
+  ) {
     return NextResponse.next();
   }
 

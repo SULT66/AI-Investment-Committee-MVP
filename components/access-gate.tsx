@@ -19,6 +19,11 @@ export function AccessGate() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: value })
       });
+      if (res.redirected || res.headers.get("content-type")?.includes("text/html")) {
+        setError("The access check could not be reached. Please reload the page and try again.");
+        setBusy(false);
+        return;
+      }
       if (!res.ok) {
         setError("That code was not recognised.");
         setBusy(false);
@@ -51,6 +56,10 @@ export function AccessGate() {
             aria-label="Access code"
             autoFocus
             maxLength={200}
+            /* this is a shared release code, not a saved credential */
+            autoComplete="off"
+            name="aic-release-code"
+            spellCheck={false}
           />
           <button onClick={() => void submit()} disabled={busy || !code.trim()}>
             {busy ? "Checking…" : "Enter"}
