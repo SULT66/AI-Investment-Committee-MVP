@@ -13,15 +13,21 @@ import "./site-nav.css";
  * naming what is coming is useful, pretending it works is not, so it carries a
  * label and no href rather than a link into a 501.
  *
- * Hidden on two routes. The access gate has nothing to navigate to yet, and the
- * Live Desk is a session in progress - offering a way out mid-committee is how
- * someone loses a review they have already been charged for.
+ * Hidden on exactly one route: the access gate. Before the code is entered every
+ * link would bounce straight back to it, so a menu there is a row of buttons
+ * that do nothing.
+ *
+ * It is shown on the Live Desk. Leaving mid-session used to look like losing the
+ * review, but a session runs as a durable job and its report is saved whether or
+ * not anyone is watching - it will be waiting under Dashboard and Sessions. A
+ * client who wants to leave should not have to hunt for the way out.
  */
 
 type Me = { account: { email: string; staff?: boolean } | null };
 
 const LINKS = [
-  { href: "/analyze", label: "Analyze", match: (p: string) => p === "/" || p.startsWith("/analyze") },
+  { href: "/dashboard", label: "Dashboard", match: (p: string) => p.startsWith("/dashboard") },
+  { href: "/analyze", label: "Analyze", match: (p: string) => p.startsWith("/analyze") },
   { href: "/build", label: "Build", match: (p: string) => p.startsWith("/build") },
   { href: "/reports", label: "Sessions", match: (p: string) => p.startsWith("/reports") },
   { href: "/terms#plans", label: "Plans", match: () => false }
@@ -40,7 +46,7 @@ export function SiteNav() {
       .finally(() => setChecked(true));
   }, [pathname]);
 
-  if (pathname.startsWith("/access") || pathname.startsWith("/live")) return null;
+  if (pathname.startsWith("/access")) return null;
 
   return (
     <header className="siteNav">

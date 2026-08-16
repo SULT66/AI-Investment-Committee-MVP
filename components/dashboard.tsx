@@ -50,7 +50,7 @@ const ago = (iso: string) => {
   return new Date(iso).toLocaleDateString();
 };
 
-export function Dashboard({ onEmpty }: { onEmpty: React.ReactNode }) {
+export function Dashboard() {
   const [data, setData] = useState<Data | null>(null);
   const [open, setOpen] = useState<string | null>(null);
 
@@ -78,10 +78,27 @@ export function Dashboard({ onEmpty }: { onEmpty: React.ReactNode }) {
       .catch(() => setData(null));
   }, [deepLink]);
 
-  // Until we know, show the ordinary page rather than a flash of skeleton.
-  if (deepLink) return <>{onEmpty}</>;
-  if (!data) return <>{onEmpty}</>;
-  if (!data.hasHistory) return <>{onEmpty}</>;
+  if (deepLink) return null;   // already navigating to the analyze wizard
+
+  if (!data) return <main className="dash"><p className="dashNote">Loading…</p></main>;
+
+  if (!data.hasHistory) {
+    return (
+      <main className="dash">
+        <header className="dashHead">
+          <h1>Where you left off</h1>
+          <p className="dashLede">
+            Once you have run a session this is where it lives: what you concluded, and what has
+            moved since. Nothing here yet.
+          </p>
+        </header>
+        <section className="dashStart">
+          <Link className="dashPrimary" href="/analyze">Review an instrument</Link>
+          <Link className="dashSecondary" href="/build">Build a plan</Link>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="dash">

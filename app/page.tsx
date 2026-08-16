@@ -1,6 +1,5 @@
 import { SessionStarter } from "@/components/session-starter";
 import { PremiumMarketDeck } from "@/components/premium-market-deck";
-import { Dashboard } from "@/components/dashboard";
 
 /**
  * Home — handoff §2.2.
@@ -12,16 +11,7 @@ import { Dashboard } from "@/components/dashboard";
  * Positioning stays research and decision support: no personal amounts, no
  * promised outcomes, the user decides.
  */
-/*
- * A returning client sees their own work first; a new visitor sees the pitch.
- * Showing somebody the sales page for the fourth time is a small insult, and
- * the dashboard falls back to this markup whenever there is nothing to show.
- */
 export default function HomePage() {
-  return <Dashboard onEmpty={<Landing />} />;
-}
-
-function Landing() {
   return (
     <main className="landing">
       <section className="hero">
