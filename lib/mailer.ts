@@ -4,25 +4,34 @@ import { randomBytes } from "crypto";
 import { hostname } from "os";
 
 /**
- * A small SMTP client.
+ * Sending mail.
  *
- * Deliberately dependency-free. update.ps1 copies app/ lib/ components/ public/
- * docs/ and the root config files - it does not copy package.json - so a new
- * npm dependency cannot be delivered by an archive. Node's own tls module can
- * speak SMTP well enough for two transactional messages.
+ * Azure App Service blocks outbound SMTP - 25 always, 465 and 587 on most
+ * plans - so a direct connection to mail.lareo.ai times out from production no
+ * matter how the mailbox is configured. Delivery therefore goes over HTTPS on
+ * 443, which nothing blocks.
  *
- * Supports implicit TLS (port 465) and STARTTLS (port 587). Bluehost accepts
- * both on mail.lareo.ai; 465 is the default here because there is no plaintext
- * window at all.
+ * Two transports, chosen by which variables are set:
+ *   RESEND_API_KEY   -> HTTPS. This is what production uses.
+ *   SMTP_HOST/USER/PASSWORD -> direct SMTP. Kept because it works from a local
+ *                      machine and needs no third party to test against.
  *
- * Nothing here logs the password, the message body, or the recipient address.
+ * Still dependency-free. update.ps1 does not copy package.json, so an archive
+ * cannot deliver an npm package; fetch and node:tls are both built in.
  */
 
 const CRLF = "\r\n";
 const CONNECT_TIMEOUT_MS = 15_000;
 const COMMAND_TIMEOUT_MS = 20_000;
+const HTTP_TIMEOUT_MS = 15_000;
 
-export type MailerConfig = {
+const FROM_NAME = "AI Investment Committee";
+
+export type SendResult = { ok: true; id?: string } | { ok: false; reason: string };
+
+/* ----------------------------------------------------------- configuration */
+
+export type SmtpConfig = {
   host: string;
   port: number;
   user: string;
@@ -32,7 +41,19 @@ export type MailerConfig = {
   implicitTls: boolean;
 };
 
-export function mailerConfig(): MailerConfig | null {
+export type HttpConfig = { apiKey: string; from: string; endpoint: string };
+
+export function httpConfig(): HttpConfig | null {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+  return {
+    apiKey,
+    from: process.env.MAIL_FROM ?? process.env.SMTP_FROM ?? "no-reply.aic@lareo.ai",
+    endpoint: process.env.RESEND_API_URL ?? "https://api.resend.com/emails"
+  };
+}
+
+export function smtpConfig(): SmtpConfig | null {
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
   const password = process.env.SMTP_PASSWORD;
@@ -44,12 +65,58 @@ export function mailerConfig(): MailerConfig | null {
     port,
     user,
     password,
-    from: process.env.SMTP_FROM ?? user,
+    from: process.env.MAIL_FROM ?? process.env.SMTP_FROM ?? user,
     implicitTls: mode ? mode === "implicit" : port === 465
   };
 }
 
-export const mailerConfigured = (): boolean => mailerConfig() !== null;
+/** Kept for callers that only need to know whether mail can be sent at all. */
+export const mailerConfigured = (): boolean => httpConfig() !== null || smtpConfig() !== null;
+
+export const transportName = (): "https" | "smtp" | "none" =>
+  httpConfig() ? "https" : smtpConfig() ? "smtp" : "none";
+
+const validAddress = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
+
+/* ------------------------------------------------------------------- HTTPS */
+
+async function sendOverHttp(config: HttpConfig, to: string, subject: string, text: string): Promise<SendResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
+  try {
+    const response = await fetch(config.endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: `${FROM_NAME} <${config.from}>`,
+        to: [to],
+        subject,
+        text
+      }),
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      // The body names the problem - unverified domain, bad key - but can quote
+      // the recipient back, so it is trimmed and never logged whole.
+      const detail = (await response.text().catch(() => "")).slice(0, 300).replace(to, "<recipient>");
+      return { ok: false, reason: `http ${response.status}: ${detail}` };
+    }
+
+    const body = (await response.json().catch(() => ({}))) as { id?: string };
+    return { ok: true, id: body.id };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "unknown";
+    return { ok: false, reason: reason === "The operation was aborted." ? "http request timed out" : reason };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* -------------------------------------------------------------------- SMTP */
 
 /** Reads SMTP replies, which may span several lines: "250-FIRST" then "250 LAST". */
 class ReplyReader {
@@ -58,8 +125,9 @@ class ReplyReader {
 
   push(chunk: string): void {
     this.buffer += chunk;
+    if (!this.waiting) return;   // leave it in the buffer rather than dropping it
     const reply = this.take();
-    if (reply && this.waiting) {
+    if (reply) {
       const waiting = this.waiting;
       this.waiting = null;
       waiting.resolve(reply);
@@ -106,7 +174,7 @@ class SmtpError extends Error {
   }
 }
 
-function openSocket(config: MailerConfig): Promise<Socket | TLSSocket> {
+function openSocket(config: SmtpConfig): Promise<Socket | TLSSocket> {
   return new Promise((resolve, reject) => {
     const implicitTls = config.implicitTls;
     const socket = implicitTls
@@ -140,10 +208,10 @@ const dotStuff = (body: string) => body.split(CRLF).map((l) => (l.startsWith("."
 const encodeBody = (text: string) =>
   (Buffer.from(text, "utf8").toString("base64").match(/.{1,76}/g) ?? []).join(CRLF);
 
-function buildMessage(config: MailerConfig, to: string, subject: string, text: string): string {
+function buildMessage(config: SmtpConfig, to: string, subject: string, text: string): string {
   const id = `${randomBytes(12).toString("hex")}@${config.from.split("@")[1] ?? "localhost"}`;
   const headers = [
-    `From: AI Investment Committee <${config.from}>`,
+    `From: ${FROM_NAME} <${config.from}>`,
     `To: <${to}>`,
     `Subject: ${subject.replace(/[\r\n]/g, " ")}`,
     `Date: ${new Date().toUTCString()}`,
@@ -156,17 +224,7 @@ function buildMessage(config: MailerConfig, to: string, subject: string, text: s
   return `${headers.join(CRLF)}${CRLF}${CRLF}${encodeBody(text.replace(/\n/g, CRLF))}`;
 }
 
-export type SendResult = { ok: true } | { ok: false; reason: string };
-
-/**
- * Sends one message. Never throws: callers are user-facing routes that must not
- * expose mail-server detail, so failures come back as a reason string to log.
- */
-export async function sendMail(to: string, subject: string, text: string): Promise<SendResult> {
-  const config = mailerConfig();
-  if (!config) return { ok: false, reason: "smtp_not_configured" };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(to)) return { ok: false, reason: "invalid_recipient" };
-
+async function sendOverSmtp(config: SmtpConfig, to: string, subject: string, text: string): Promise<SendResult> {
   let socket: Socket | TLSSocket | null = null;
   const reader = new ReplyReader();
 
@@ -216,10 +274,7 @@ export async function sendMail(to: string, subject: string, text: string): Promi
     socket.write(`QUIT${CRLF}`);
     return { ok: true };
   } catch (error) {
-    const reason = error instanceof Error ? error.message : "unknown";
-    // Recipient address stays out of the log.
-    console.error("[mailer]", reason);
-    return { ok: false, reason };
+    return { ok: false, reason: error instanceof Error ? error.message : "unknown" };
   } finally {
     try {
       socket?.destroy();
@@ -227,4 +282,27 @@ export async function sendMail(to: string, subject: string, text: string): Promi
       /* already gone */
     }
   }
+}
+
+/* ----------------------------------------------------------------- sending */
+
+/**
+ * Sends one message. Never throws: callers are user-facing routes that must not
+ * expose mail-server detail, so failures come back as a reason string to log.
+ * The recipient address stays out of the log either way.
+ */
+export async function sendMail(to: string, subject: string, text: string): Promise<SendResult> {
+  if (!validAddress(to)) return { ok: false, reason: "invalid_recipient" };
+
+  const http = httpConfig();
+  const smtp = smtpConfig();
+  if (!http && !smtp) return { ok: false, reason: "mail_not_configured" };
+
+  const result = http
+    ? await sendOverHttp(http, to, subject, text)
+    : await sendOverSmtp(smtp!, to, subject, text);
+
+  // "in" narrows under a non-strict tsconfig too, unlike a check on result.ok.
+  if ("reason" in result) console.error(`[mailer] ${transportName()}:`, result.reason);
+  return result;
 }
