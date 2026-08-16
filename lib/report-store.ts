@@ -4,6 +4,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import type { SessionSnapshot } from "./session-store";
 import { getAgent } from "./agent-registry";
+import { recordReport } from "./report-index";
 
 /**
  * Committee reports.
@@ -170,6 +171,13 @@ export function buildReport(snapshot: SessionSnapshot, version: number): Committ
 }
 
 /** Writes a new version. Existing versions are never touched. */
+/**
+ * Writes the report, then records it against its owner so it can be found again.
+ *
+ * The index write is deliberately after the report and deliberately cannot fail
+ * the save: the report is already permanent at its own address, and losing a
+ * line in a list is not worth losing a completed session over.
+ */
 export async function saveReport(snapshot: SessionSnapshot): Promise<CommitteeReport | null> {
   const clean = safeId(snapshot.id);
   if (!clean) return null;
@@ -183,6 +191,18 @@ export async function saveReport(snapshot: SessionSnapshot): Promise<CommitteeRe
   const temp = `${target}.${process.pid}.tmp`;
   await writeFile(temp, JSON.stringify(report), "utf8");
   await rename(temp, target);
+
+  await recordReport(snapshot.ownerId, {
+    sessionId: clean,
+    type: snapshot.type,
+    label: snapshot.ticker,
+    completedAt: report.generatedAt,
+    reportVersion: version,
+    decision: snapshot.decision?.label ?? null,
+    confidence: snapshot.decision?.confidence ?? null,
+    growthAssetPercent: snapshot.allocation?.growthAssetPercent ?? null
+  });
+
   return report;
 }
 

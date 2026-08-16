@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAccount, createVerifyToken, issueSessionCookie, sessionCookieHeader } from "@/lib/accounts";
 import { VISITOR_COOKIE, adoptVisitorLedger, readVisitorCookie } from "@/lib/entitlements";
+import { adoptReports } from "@/lib/report-index";
 import { baseUrl, sendVerifyEmail } from "@/lib/auth-emails";
 import { mailerConfigured } from "@/lib/mailer";
 
@@ -46,8 +47,10 @@ export async function POST(request: Request) {
     );
   }
 
-  // Trial usage follows the person, not the browser.
+  // Trial usage follows the person, not the browser - and so does the work they
+  // already have. Registering after two reviews should not lose them.
   await adoptVisitorLedger(result.account.id, visitorId);
+  await adoptReports(result.account.id, visitorId);
 
   // Confirmation is sent, not enforced. A mail failure must not cost someone the
   // account they just created, so it is logged and the sign-up still succeeds.

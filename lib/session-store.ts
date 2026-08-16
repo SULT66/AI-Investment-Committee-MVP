@@ -85,6 +85,9 @@ export type SessionSnapshot = {
   /* BUILD sessions only. An allocation has no single ticker and no currency
      amount: the plan is percentages, and the client's own figure is applied in
      the interface. Optional so ANALYZE sessions are unaffected. */
+  /* Account id when signed in, visitor id otherwise. Needed so a finished
+     report can be listed back to the person who paid for it. */
+  ownerId?: string;
   buildProfile?: { risk: string; horizon: string; goal: string; excludedSectors: string[] };
   allocationPolicy?: unknown;
   allocation?: {
@@ -163,6 +166,7 @@ export async function createSession(init: {
   type: SessionSnapshot["type"];
   ticker: string;
   agentKeys: AgentKey[];
+  ownerId?: string;
 }): Promise<SessionSnapshot> {
   const now = new Date().toISOString();
   const snapshot: SessionSnapshot = {
@@ -170,6 +174,7 @@ export async function createSession(init: {
     type: init.type,
     status: "CREATED",
     ticker: init.ticker,
+    ownerId: init.ownerId,
     createdAt: now,
     updatedAt: now,
     lastSequence: 0,

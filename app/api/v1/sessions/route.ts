@@ -124,7 +124,7 @@ export async function POST(request: Request) {
   // a ticker, so it has to read as a plan rather than a symbol.
   const label = input.type === "BUILD" ? "PORTFOLIO PLAN" : (input.ticker ?? "").toUpperCase();
 
-  await createSession({ id: sessionId, type: input.type, ticker: label, agentKeys });
+  await createSession({ id: sessionId, type: input.type, ticker: label, agentKeys, ownerId: visitorId });
   await emit(sessionId, "session.created", { type: input.type, ticker: label, agents: agentKeys });
 
   // Fire and forget: the response returns immediately, so no gateway timeout.

@@ -23,6 +23,7 @@ type Me = { account: { email: string; staff?: boolean } | null };
 const LINKS = [
   { href: "/", label: "Analyze", match: (p: string) => p === "/" },
   { href: "/build", label: "Build", match: (p: string) => p.startsWith("/build") },
+  { href: "/reports", label: "Sessions", match: (p: string) => p.startsWith("/reports") },
   { href: "/terms#plans", label: "Plans", match: () => false }
 ];
 
