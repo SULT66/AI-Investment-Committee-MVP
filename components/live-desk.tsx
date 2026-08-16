@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AllocationPlan, type AllocationLine } from "./allocation-plan";
 
 /**
  * AIC Live Investment Desk.
@@ -50,6 +51,9 @@ type Snapshot = {
   policyChecks: Array<{ id: string; label: string; passed: boolean; detail: string }> | null;
   dataSufficiency: { sufficient: boolean; gaps: string[]; quoteAgeMinutes: number | null } | null;
   assumedProfileFields?: string[];
+  /* BUILD sessions only; absent on a single-instrument review. */
+  allocation?: { lines: AllocationLine[]; growthAssetPercent: number; adjustments: string[] } | null;
+  buildProfile?: { risk: string; horizon: string; goal: string; excludedSectors: string[] } | null;
   error?: { code: string; message: string };
 };
 
@@ -97,6 +101,19 @@ const fmt = (v: number | null | undefined, d = 2) =>
 
 export function LiveDesk({ sessionId }: { sessionId: string }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  /* A Build session's balance stays in this browser and never reaches the
+     server, so amounts beside the percentages are read back from here. Absent,
+     the plan shows percentages only. */
+  const [buildBalance, setBuildBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(`aic_build_balance_${sessionId}`);
+      if (stored && Number(stored) > 0) setBuildBalance(Number(stored));
+    } catch {
+      /* private mode: percentages only */
+    }
+  }, [sessionId]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<Array<{ key: string; text: string }>>([]);
   const [revealed, setRevealed] = useState(false);
@@ -496,8 +513,26 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
               <dl className="finalMeta">
                 <div><dt>Portfolio fit</dt><dd>{snapshot.decision.portfolioFit}</dd></div>
                 <div><dt>Horizon</dt><dd>{snapshot.decision.horizon || "—"}</dd></div>
-                <div><dt>Your limit</dt><dd>{snapshot.sizing?.maxPositionPercent.toFixed(1)}%</dd></div>
+                <div>
+                  <dt>{snapshot.allocation ? "Growth assets" : "Your limit"}</dt>
+                  <dd>
+                    {snapshot.allocation
+                      ? `${snapshot.allocation.growthAssetPercent.toFixed(1)}%`
+                      : snapshot.sizing
+                        ? `${snapshot.sizing.maxPositionPercent.toFixed(1)}%`
+                        : "—"}
+                  </dd>
+                </div>
               </dl>
+
+              {snapshot.allocation && snapshot.allocation.lines.length > 0 && (
+                <AllocationPlan
+                  lines={snapshot.allocation.lines}
+                  growthAssetPercent={snapshot.allocation.growthAssetPercent}
+                  adjustments={snapshot.allocation.adjustments}
+                  balance={buildBalance}
+                />
+              )}
               <h4>Why</h4>
               <ul className="reasons">{snapshot.decision.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
               <h4>Why not</h4>

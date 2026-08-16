@@ -1,0 +1,51 @@
+/* Build wizard. One question per screen; on a phone that is the difference
+   between finishing and abandoning. */
+
+.wizard{max-width:560px;margin:0 auto;padding:56px 22px 90px;color:#E9EFF7}
+
+.wizSteps{display:flex;gap:6px;list-style:none;margin:0 0 34px;padding:0}
+.wizSteps li{flex:1;display:flex;flex-direction:column;gap:7px;font-size:11px;color:#66748A}
+.wizStepNum{display:grid;place-items:center;width:100%;height:3px;border-radius:2px;
+  background:rgba(255,255,255,.07);font-size:0;color:transparent}
+.wizSteps li.on .wizStepNum,.wizSteps li.done .wizStepNum{background:#4DA3FF}
+.wizSteps li.on{color:#E9EFF7}
+.wizStepLabel{letter-spacing:.04em}
+
+.wizPanel h2{margin:0 0 10px;font-size:23px;line-height:1.2;letter-spacing:-.02em}
+.wizLede{margin:0 0 24px;font-size:13.5px;line-height:1.65;color:#8A97AA}
+
+.wizField{display:flex;flex-direction:column;gap:7px;font-size:12px;color:#8fb8e8}
+.wizField input{background:rgba(255,255,255,.04);border:1px solid #1b3350;color:#E9EFF7;
+  border-radius:9px;padding:14px 15px;font:inherit;font-size:max(1rem,16px);width:100%;
+  box-sizing:border-box}
+.wizField input:focus{outline:none;border-color:#4DA3FF}
+
+.wizChoices{display:grid;gap:9px}
+.wizChoice{display:flex;flex-direction:column;gap:5px;text-align:left;padding:15px 16px;
+  border:1px solid #1b3350;border-radius:11px;background:rgba(255,255,255,.02);color:#E9EFF7;
+  font:inherit;cursor:pointer;min-height:44px}
+.wizChoice:hover{border-color:#2c5480}
+.wizChoice.on{border-color:#4DA3FF;background:rgba(77,163,255,.08)}
+.wizChoice:focus-visible{outline:2px solid #4DA3FF;outline-offset:2px}
+.wizChoice strong{font-size:14.5px;font-weight:600}
+.wizChoice span{font-size:12.5px;line-height:1.5;color:#8A97AA}
+
+.wizNav{display:flex;gap:10px;margin-top:30px}
+.wizNext{flex:1;background:#4DA3FF;color:#04101F;border:none;padding:14px 22px;font:inherit;
+  font-weight:600;border-radius:9px;cursor:pointer;min-height:48px}
+.wizNext:disabled{opacity:.4;cursor:default}
+.wizBack{background:none;border:1px solid #1b3350;color:#E9EFF7;padding:14px 22px;font:inherit;
+  border-radius:9px;cursor:pointer;min-height:48px}
+.wizBack:hover{border-color:#4DA3FF}
+
+.wizNote{margin:18px 0 0;font-size:12.5px;color:#8A97AA}
+.wizError{margin:14px 0 0;font-size:12.5px;color:#EF4444}
+.wizExhausted{margin:18px 0 0;border:1px solid rgba(245,184,77,.4);background:rgba(245,184,77,.07);
+  padding:13px 15px;border-radius:9px;font-size:12.5px;line-height:1.6;color:#F0D6A4}
+
+@media (prefers-reduced-motion:reduce){.wizChoice{transition:none}}
+
+.buildHead{max-width:560px;margin:0 auto;padding:34px 22px 0}
+.buildKicker{margin:0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#66748A}
+.buildKicker a{color:#8fb8e8;text-decoration:none}
+.buildKicker a:hover{color:#E9EFF7}

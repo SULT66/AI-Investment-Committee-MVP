@@ -44,6 +44,10 @@ export type CommitteeReport = {
   asset: { symbol: string; name: string; exchange: string; industry: string; currency: string };
   marketSnapshot: Record<string, unknown> | null;
   decision: SessionSnapshot["decision"];
+  /* BUILD sessions only. Percentages, never amounts: a report is immutable, and
+     a currency figure written into one cannot be walked back later. */
+  allocation?: SessionSnapshot["allocation"];
+  buildProfile?: SessionSnapshot["buildProfile"];
   confidenceNote: string;
   opinions: ReportOpinion[];
   tally: { buy: number; hold: number; avoid: number; missing: number };
@@ -148,6 +152,8 @@ export function buildReport(snapshot: SessionSnapshot, version: number): Committ
     },
     marketSnapshot: md,
     decision: snapshot.decision,
+    allocation: snapshot.allocation,
+    buildProfile: snapshot.buildProfile,
     confidenceNote:
       "Confidence is a weighted score, not a probability: committee agreement 35%, data completeness 30%, " +
       "policy fit 20%, horizon fit 10%, evidence breadth 5%.",

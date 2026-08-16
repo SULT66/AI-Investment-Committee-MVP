@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AllocationPlan, type AllocationLine } from "./allocation-plan";
 
 /**
  * Persistent Committee Report — handoff §2.1 (/report/:sessionId).
@@ -28,6 +29,12 @@ type Report = {
     dissent: Array<{ member: string; vote: string; reason: string }>;
     reviewTriggers: string[]; revealedAt: string;
   };
+  allocation?: {
+    lines: AllocationLine[];
+    growthAssetPercent: number;
+    adjustments: string[];
+  } | null;
+  buildProfile?: { risk: string; horizon: string; goal: string; excludedSectors: string[] } | null;
   confidenceNote: string;
   opinions: Array<{
     agentKey: string; displayName: string; vote: string; confidence: number;
@@ -59,6 +66,19 @@ const num = (v: unknown, d = 2) =>
 export function ReportView({ sessionId }: { sessionId: string }) {
   const [report, setReport] = useState<Report | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "missing">("loading");
+  /* The balance a Build session was planned against never left the browser, so
+     it is read back from here to show amounts. Absent - a different device, a
+     cleared tab - the plan simply shows percentages. */
+  const [buildBalance, setBuildBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(`aic_build_balance_${sessionId}`);
+      if (stored && Number(stored) > 0) setBuildBalance(Number(stored));
+    } catch {
+      /* private mode: percentages only */
+    }
+  }, [sessionId]);
 
   useEffect(() => {
     let active = true;
@@ -254,6 +274,17 @@ export function ReportView({ sessionId }: { sessionId: string }) {
           ) : <p className="reportNote">No sizing recorded.</p>}
         </div>
       </section>
+
+      {report.allocation && report.allocation.lines.length > 0 && (
+        <section>
+          <AllocationPlan
+            lines={report.allocation.lines}
+            growthAssetPercent={report.allocation.growthAssetPercent}
+            adjustments={report.allocation.adjustments}
+            balance={buildBalance}
+          />
+        </section>
+      )}
 
       {report.news.length > 0 && (
         <section>

@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { SPECIALISTS, CHAIR } from "@/lib/agent-registry";
 import { createSession, emit } from "@/lib/session-store";
 import { runCommitteeJob } from "@/lib/committee-orchestrator";
+import { runBuildJob } from "@/lib/build-orchestrator";
 import {
   VISITOR_COOKIE, getEntitlement, issueVisitorCookie, readVisitorCookie,
   releaseReview, reserveReview
@@ -15,9 +16,22 @@ export const dynamic = "force-dynamic";
 /** Only the create call is on the request thread. The committee runs as a job. */
 export const maxDuration = 30;
 
+/* BUILD carries a profile instead of a ticker: there is no single instrument to
+   review. The amount is used only to judge whether a plan is buildable at that
+   size - it is never stored, never sent to a model and never returned. */
+const buildProfileSchema = z.object({
+  risk: z.enum(["conservative", "balanced", "growth", "aggressive"]).default("balanced"),
+  horizon: z.enum(["under1", "1to3", "3to5", "over5"]).default("3to5"),
+  goal: z.enum(["preservation", "income", "growth", "max_growth"]).default("growth"),
+  excludedSectors: z.array(z.string().trim().max(40)).max(12).optional()
+});
+
 const schema = z.object({
   type: z.enum(["ANALYZE", "BUILD", "REVIEW"]).default("ANALYZE"),
-  ticker: z.string().trim().min(1).max(32),
+  /* Required for ANALYZE, absent for BUILD; checked below rather than in the
+     schema so the error message can say which field is missing and why. */
+  ticker: z.string().trim().min(1).max(32).optional(),
+  buildProfile: buildProfileSchema.optional(),
   amount: z.number().positive().default(5000),
   portfolioValue: z.number().positive().default(120000),
   /* No default: an unsupplied sector exposure is unknown, not zero and not
@@ -65,6 +79,19 @@ export async function POST(request: Request) {
       `HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;
   }
 
+  if (input.type === "ANALYZE" && !input.ticker) {
+    return NextResponse.json(
+      { error: { code: "INVALID_REQUEST", message: "A review needs an instrument to review." } },
+      { status: 400 }
+    );
+  }
+  if (input.type === "REVIEW") {
+    return NextResponse.json(
+      { error: { code: "NOT_IMPLEMENTED", message: "Portfolio review is not available yet." } },
+      { status: 501 }
+    );
+  }
+
   const sessionId = `sess_${randomUUID()}`;
   const agentKeys = [...SPECIALISTS.map((a) => a.key), CHAIR.key];
 
@@ -85,17 +112,34 @@ export async function POST(request: Request) {
     return res;
   }
 
-  await createSession({ id: sessionId, type: input.type, ticker: input.ticker.toUpperCase(), agentKeys });
-  await emit(sessionId, "session.created", {
-    type: input.type,
-    ticker: input.ticker.toUpperCase(),
-    agents: agentKeys
-  });
+  // A build has no instrument; the label is what the Live Desk shows in place of
+  // a ticker, so it has to read as a plan rather than a symbol.
+  const label = input.type === "BUILD" ? "PORTFOLIO PLAN" : (input.ticker ?? "").toUpperCase();
+
+  await createSession({ id: sessionId, type: input.type, ticker: label, agentKeys });
+  await emit(sessionId, "session.created", { type: input.type, ticker: label, agents: agentKeys });
 
   // Fire and forget: the response returns immediately, so no gateway timeout.
   // The job settles the reservation itself — a platform failure must not consume
   // one of the client's free reviews (handoff §11.1).
-  void runCommitteeJob(sessionId, input, visitorId).catch(async (err) => {
+  const job =
+    input.type === "BUILD"
+      ? runBuildJob(
+          sessionId,
+          {
+            type: "BUILD",
+            amount: input.amount,
+            risk: input.buildProfile?.risk ?? "balanced",
+            horizon: input.buildProfile?.horizon ?? "3to5",
+            goal: input.buildProfile?.goal ?? "growth",
+            excludedSectors: input.buildProfile?.excludedSectors ?? [],
+            language: input.language
+          },
+          visitorId
+        )
+      : runCommitteeJob(sessionId, { ...input, ticker: (input.ticker ?? "").toUpperCase() }, visitorId);
+
+  void job.catch(async (err) => {
     console.error("Committee job crashed", sessionId, err);
     await releaseReview(visitorId as string, sessionId, "job crashed").catch(() => undefined);
   });

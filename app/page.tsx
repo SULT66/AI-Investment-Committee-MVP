@@ -5,7 +5,7 @@ import { UsageBadge } from "@/components/usage-badge";
 /**
  * Home — handoff §2.2.
  *
- * Three entry points: Analyze, Build, Review. Analyze is live; the other two are
+ * Three entry points: Analyze, Build, Review. Analyze and Build are live; Review is
  * shown as what they will be, marked clearly as not yet available rather than
  * dressed up as working features.
  *
@@ -62,12 +62,12 @@ export default function HomePage() {
             <p>I know what I want to analyze.</p>
             <small>A single security examined by the full committee, with evidence and dissent.</small>
           </article>
-          <article className="intent soon">
-            <span className="intentTag">In development</span>
+          <a className="intent live intentLink" href="/build">
+            <span className="intentTag">Available now</span>
             <h3>Build</h3>
             <p>I have money to invest.</p>
-            <small>An allocation plan by sleeve, with the reasoning behind each holding.</small>
-          </article>
+            <small>An allocation plan by sleeve, with the reasoning behind each weight.</small>
+          </a>
           <article className="intent soon">
             <span className="intentTag">In development</span>
             <h3>Review</h3>

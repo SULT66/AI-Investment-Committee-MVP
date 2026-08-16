@@ -34,6 +34,24 @@ export function SessionStarter() {
   const [horizon, setHorizon] = useState("5");
   const [risk, setRisk] = useState<"low" | "moderate" | "high">("moderate");
 
+  /* A Build plan links to its candidate instruments as /?ticker=VTI. Without
+     this the link lands on an empty search box and the drill-down promised by
+     the allocation goes nowhere. Runs once, and only if nothing is selected. */
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current) return;
+    prefilled.current = true;
+    const wanted = new URLSearchParams(window.location.search).get("ticker");
+    if (wanted && /^[A-Za-z0-9.\-]{1,12}$/.test(wanted)) {
+      setQuery(wanted.toUpperCase());
+      void chooseRaw(wanted.toUpperCase());
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    // chooseRaw is stable for the life of the component; re-running on every
+    // render would restart the search on each keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2 || selected) {

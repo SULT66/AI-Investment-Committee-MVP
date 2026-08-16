@@ -32,7 +32,8 @@ export type SessionEventName =
   | "session.created" | "session.research.progress" | "evidence.added"
   | "agent.started" | "agent.statement.completed" | "agent.opinion.saved" | "agent.failed"
   | "committee.vote.updated" | "chairman.started" | "chairman.completed"
-  | "decision.revealed" | "report.ready" | "session.completed" | "session.failed";
+  | "decision.revealed" | "report.ready" | "session.completed" | "session.failed"
+  | "allocation.ready";
 
 export type SessionEvent = {
   event: SessionEventName;
@@ -81,6 +82,19 @@ export type SessionSnapshot = {
   policyChecks: unknown;
   dataSufficiency: unknown;
   assumedProfileFields?: string[];
+  /* BUILD sessions only. An allocation has no single ticker and no currency
+     amount: the plan is percentages, and the client's own figure is applied in
+     the interface. Optional so ANALYZE sessions are unaffected. */
+  buildProfile?: { risk: string; horizon: string; goal: string; excludedSectors: string[] };
+  allocationPolicy?: unknown;
+  allocation?: {
+    lines: Array<{
+      sleeve: string; label: string; percent: number; proposedPercent: number;
+      adjusted: boolean; rationale: string; candidates: string[];
+    }>;
+    growthAssetPercent: number;
+    adjustments: string[];
+  };
   error?: { code: string; message: string };
 };
 
