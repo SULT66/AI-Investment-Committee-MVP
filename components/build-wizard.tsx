@@ -101,7 +101,10 @@ export function BuildWizard() {
    */
   useEffect(() => {
     if (!restored) return;
-    window.history.replaceState({ aicBuildStep: step }, "");
+    // Merge, never replace. The App Router keeps its own routing tree in
+    // history.state; overwriting it breaks client-side navigation, which is how
+    // leaving for another page and coming back stopped working at all.
+    window.history.replaceState({ ...window.history.state, aicBuildStep: step }, "");
 
     const onPop = (event: PopStateEvent) => {
       const target = (event.state as { aicBuildStep?: number } | null)?.aicBuildStep;
@@ -117,8 +120,9 @@ export function BuildWizard() {
 
   function goTo(next: number) {
     setStep(next);
-    if (next > step) window.history.pushState({ aicBuildStep: next }, "");
-    else window.history.replaceState({ aicBuildStep: next }, "");
+    const merged = { ...window.history.state, aicBuildStep: next };
+    if (next > step) window.history.pushState(merged, "");
+    else window.history.replaceState(merged, "");
   }
 
   const parsedAmount = Number(amount.replace(/[^\d.]/g, ""));
