@@ -54,14 +54,33 @@ export function Dashboard({ onEmpty }: { onEmpty: React.ReactNode }) {
   const [data, setData] = useState<Data | null>(null);
   const [open, setOpen] = useState<string | null>(null);
 
+  /*
+   * A deep link to an instrument must reach the search form, not this page.
+   *
+   * Candidate tickers in a plan link to /?ticker=VCIT, and the report's own
+   * links do the same. Once the dashboard started answering for "/", those
+   * links landed on it instead: somebody clicking a candidate to research it
+   * was shown their own history rather than the review they asked for.
+   *
+   * Decided in the initial state rather than an effect, so the dashboard is
+   * never fetched and never briefly rendered on the way past.
+   */
+  const [deepLink] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const wanted = new URLSearchParams(window.location.search).get("ticker");
+    return Boolean(wanted && /^[A-Za-z0-9.\-]{1,12}$/.test(wanted));
+  });
+
   useEffect(() => {
+    if (deepLink) return;
     fetch("/api/v1/dashboard", { cache: "no-store" })
       .then((res) => res.json())
       .then((body: Data) => setData(body))
       .catch(() => setData(null));
-  }, []);
+  }, [deepLink]);
 
   // Until we know, show the ordinary page rather than a flash of skeleton.
+  if (deepLink) return <>{onEmpty}</>;
   if (!data) return <>{onEmpty}</>;
   if (!data.hasHistory) return <>{onEmpty}</>;
 
