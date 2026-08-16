@@ -9,9 +9,7 @@ import "./site-nav.css";
 /**
  * The header.
  *
- * Three entry points, plans, and the account. Review is shown but not linked:
- * naming what is coming is useful, pretending it works is not, so it carries a
- * label and no href rather than a link into a 501.
+ * Three entry points, plans, and the account. All three are live now.
  *
  * Hidden on exactly one route: the access gate. Before the code is entered every
  * link would bounce straight back to it, so a menu there is a row of buttons
@@ -29,8 +27,8 @@ const LINKS = [
   { href: "/dashboard", label: "Dashboard", match: (p: string) => p.startsWith("/dashboard") },
   { href: "/analyze", label: "Analyze", match: (p: string) => p.startsWith("/analyze") },
   { href: "/build", label: "Build", match: (p: string) => p.startsWith("/build") },
-  { href: "/portfolio", label: "Portfolio", match: (p: string) => p.startsWith("/portfolio") },
   { href: "/reports", label: "Sessions", match: (p: string) => p.startsWith("/reports") },
+  { href: "/review", label: "Review", match: (p: string) => p.startsWith("/review") },
   { href: "/terms#plans", label: "Plans", match: () => false }
 ];
 
@@ -67,9 +65,6 @@ export function SiteNav() {
               {l.label}
             </Link>
           ))}
-          <span className="siteNavLink siteNavSoon" aria-disabled="true">
-            Review<em>soon</em>
-          </span>
         </nav>
 
         <div className="siteNavRight">

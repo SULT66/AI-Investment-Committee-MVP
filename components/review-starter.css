@@ -1,0 +1,19 @@
+/* Review starter. Shares the wizard frame; only the holdings list is new. */
+
+.revList{list-style:none;margin:20px 0 0;padding:0;border:1px solid #1b3350;border-radius:10px;
+  overflow:hidden}
+.revList li{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:11px 14px;font-size:13px}
+.revList li+li{border-top:1px solid rgba(27,51,80,.7)}
+.revList b{letter-spacing:.02em}
+.revList span{font-size:12px;color:#66748A;font-variant-numeric:tabular-nums}
+
+.revLabel{margin:22px 0 9px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:#66748A}
+.revChoices{display:flex;gap:8px;flex-wrap:wrap}
+.revChoices .wizChoice{flex:1;min-width:120px;align-items:center;text-align:center}
+
+.revWarn{margin:16px 0 0;border:1px solid rgba(245,184,77,.35);background:rgba(245,184,77,.06);
+  padding:12px 14px;border-radius:9px;font-size:12.5px;line-height:1.6;color:#F0D6A4}
+.revWarn a{color:#F0D6A4;text-decoration:underline;text-underline-offset:2px}
+.revNote{margin:16px 0 0;font-size:12.5px;line-height:1.6;color:#8A97AA}

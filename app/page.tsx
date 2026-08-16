@@ -4,9 +4,7 @@ import { PremiumMarketDeck } from "@/components/premium-market-deck";
 /**
  * Home — handoff §2.2.
  *
- * Three entry points: Analyze, Build, Review. Analyze and Build are live; Review is
- * shown as what they will be, marked clearly as not yet available rather than
- * dressed up as working features.
+ * Three entry points: Analyze, Build, Review. All three are live.
  *
  * Positioning stays research and decision support: no personal amounts, no
  * promised outcomes, the user decides.
@@ -61,12 +59,12 @@ export default function HomePage() {
             <p>I have money to invest.</p>
             <small>An allocation plan by sleeve, with the reasoning behind each weight.</small>
           </a>
-          <article className="intent soon">
-            <span className="intentTag">In development</span>
+          <a className="intent live intentLink" href="/review">
+            <span className="intentTag">Available now</span>
             <h3>Review</h3>
             <p>I already have a portfolio.</p>
             <small>Exposure and risk across your positions, with prioritised actions.</small>
-          </article>
+          </a>
         </div>
       </section>
 

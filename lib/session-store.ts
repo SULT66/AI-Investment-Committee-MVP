@@ -89,6 +89,15 @@ export type SessionSnapshot = {
      report can be listed back to the person who paid for it. */
   ownerId?: string;
   buildProfile?: { risk: string; horizon: string; goal: string; excludedSectors: string[] };
+  /* REVIEW sessions only: the portfolio the committee examined, as it stood at
+     the time. Kept on the session so the report is a record of what was actually
+     reviewed rather than of whatever the client holds when they open it later. */
+  reviewSubject?: {
+    holdings: Array<{ symbol: string; weightPercent: number | null }>;
+    weightsGiven: number;
+    weightTotalPercent: number;
+    pricedCount: number;
+  };
   allocationPolicy?: unknown;
   allocation?: {
     lines: Array<{

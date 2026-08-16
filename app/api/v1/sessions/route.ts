@@ -5,6 +5,8 @@ import { SPECIALISTS, CHAIR } from "@/lib/agent-registry";
 import { createSession, emit } from "@/lib/session-store";
 import { runCommitteeJob } from "@/lib/committee-orchestrator";
 import { runBuildJob } from "@/lib/build-orchestrator";
+import { runReviewJob } from "@/lib/review-orchestrator";
+import { getPortfolio } from "@/lib/portfolio";
 import {
   VISITOR_COOKIE, getEntitlement, issueVisitorCookie, readVisitorCookie,
   releaseReview, reserveReview
@@ -86,11 +88,23 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+  /* REVIEW takes its subject from the client's own portfolio rather than the
+     request body: the holdings are already stored, and accepting them from the
+     browser would let anyone have the committee review a list they made up. */
+  let holdings: Awaited<ReturnType<typeof getPortfolio>> = [];
   if (input.type === "REVIEW") {
-    return NextResponse.json(
-      { error: { code: "NOT_IMPLEMENTED", message: "Portfolio review is not available yet." } },
-      { status: 501 }
-    );
+    holdings = await getPortfolio(account?.id ?? visitorId);
+    if (holdings.length < 2) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "PORTFOLIO_TOO_SMALL",
+            message: "A review needs at least two holdings. Add them to your portfolio first."
+          }
+        },
+        { status: 400 }
+      );
+    }
   }
 
   const sessionId = `sess_${randomUUID()}`;
@@ -122,7 +136,12 @@ export async function POST(request: Request) {
 
   // A build has no instrument; the label is what the Live Desk shows in place of
   // a ticker, so it has to read as a plan rather than a symbol.
-  const label = input.type === "BUILD" ? "PORTFOLIO PLAN" : (input.ticker ?? "").toUpperCase();
+  const label =
+    input.type === "BUILD"
+      ? "PORTFOLIO PLAN"
+      : input.type === "REVIEW"
+        ? `PORTFOLIO · ${holdings.length} HOLDINGS`
+        : (input.ticker ?? "").toUpperCase();
 
   await createSession({ id: sessionId, type: input.type, ticker: label, agentKeys, ownerId: visitorId });
   await emit(sessionId, "session.created", { type: input.type, ticker: label, agents: agentKeys });
@@ -131,7 +150,19 @@ export async function POST(request: Request) {
   // The job settles the reservation itself — a platform failure must not consume
   // one of the client's free reviews (handoff §11.1).
   const job =
-    input.type === "BUILD"
+    input.type === "REVIEW"
+      ? runReviewJob(
+          sessionId,
+          {
+            type: "REVIEW",
+            holdings,
+            riskTolerance: input.riskTolerance,
+            horizonYears: input.horizonYears,
+            language: input.language
+          },
+          staff ? undefined : visitorId
+        )
+      : input.type === "BUILD"
       ? runBuildJob(
           sessionId,
           {
