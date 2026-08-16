@@ -153,6 +153,26 @@ async function allAccounts(): Promise<Account[]> {
   return found;
 }
 
+/**
+ * Every account, as the admin panel sees them: identity and dates only.
+ *
+ * Deliberately not the raw records. A password hash has no business leaving this
+ * file, and staff were given account administration, not the ability to read
+ * what clients researched.
+ */
+export async function listAccounts(): Promise<
+  Array<{ id: string; email: string; createdAt: string; emailVerified: boolean }>
+> {
+  return (await allAccounts())
+    .map((a) => ({
+      id: a.id,
+      email: a.email,
+      createdAt: a.createdAt,
+      emailVerified: Boolean(a.emailVerifiedAt)
+    }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 export async function findAccountById(id: string): Promise<Account | null> {
   if (!/^acc_[A-Za-z0-9-]{1,64}$/.test(id)) return null;
   for (const account of await allAccounts()) if (account.id === id) return account;

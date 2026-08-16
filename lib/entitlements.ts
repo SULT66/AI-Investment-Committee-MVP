@@ -21,7 +21,7 @@ export const FREE_LIFETIME_REVIEWS = Number(process.env.AIC_FREE_LIFETIME_REVIEW
 export type LedgerEntry = {
   id: string;
   at: string;
-  type: "reserve" | "commit" | "release" | "acknowledge";
+  type: "reserve" | "commit" | "release" | "acknowledge" | "grant";
   sessionId: string;
   units: number;
   note?: string;
@@ -29,7 +29,10 @@ export type LedgerEntry = {
 
 export type Entitlement = {
   visitorId: string;
-  plan: "free";
+  /* "staff" is not a purchased plan: it is an account on AIC_ADMIN_EMAILS, whose
+     sessions are not metered. Kept in the same shape so every caller that reads
+     an entitlement keeps working. */
+  plan: "free" | "staff";
   allowance: number;
   /** committed + still-open reservations */
   used: number;
@@ -143,9 +146,13 @@ function summarise(visitorId: string, ledger: LedgerEntry[]): Entitlement {
   const committed = new Set<string>();
   const released = new Set<string>();
   const reservations = new Map<string, LedgerEntry>();
+  /* A grant raises the allowance rather than cancelling usage, so the ledger
+     still shows what was actually spent. */
+  let granted = 0;
 
   for (const entry of ledger) {
     if (entry.type === "acknowledge") continue;   // not a usage event
+    if (entry.type === "grant") { granted += entry.units; continue; }
     if (entry.type === "reserve") reservations.set(entry.sessionId, entry);
     if (entry.type === "commit") committed.add(entry.sessionId);
     if (entry.type === "release") released.add(entry.sessionId);
@@ -159,12 +166,13 @@ function summarise(visitorId: string, ledger: LedgerEntry[]): Entitlement {
     if (age < RESERVATION_TTL_MS) used += reservation.units;   // still in flight
   }
 
+  const allowance = FREE_LIFETIME_REVIEWS + granted;
   return {
     visitorId,
     plan: "free",
-    allowance: FREE_LIFETIME_REVIEWS,
+    allowance,
     used,
-    remaining: Math.max(0, FREE_LIFETIME_REVIEWS - used),
+    remaining: Math.max(0, allowance - used),
     ledger
   };
 }
@@ -245,5 +253,34 @@ export async function releaseReview(visitorId: string, sessionId: string, note?:
     if (ledger.some((e) => e.type === "release" && e.sessionId === sessionId)) return; // idempotent
     ledger.push({ id: randomUUID(), at: new Date().toISOString(), type: "release", sessionId, units: 1, note });
     await writeLedger(visitorId, ledger);
+  });
+}
+
+/**
+ * Adds reviews to an account's allowance.
+ *
+ * Recorded as its own ledger entry naming the administrator who granted it, so
+ * an allowance that looks wrong can be traced to who changed it and why. The
+ * grant raises the allowance rather than erasing usage: the history of what was
+ * actually spent stays intact.
+ */
+export async function grantReviews(
+  visitorId: string,
+  units: number,
+  note: string
+): Promise<Entitlement> {
+  const amount = Math.min(Math.max(Math.round(units), 1), 100);
+  return withLock(visitorId, async () => {
+    const ledger = await readLedger(visitorId);
+    ledger.push({
+      id: randomUUID(),
+      at: new Date().toISOString(),
+      type: "grant",
+      sessionId: "",
+      units: amount,
+      note: note.slice(0, 200)
+    });
+    await writeLedger(visitorId, ledger);
+    return summarise(visitorId, ledger);
   });
 }

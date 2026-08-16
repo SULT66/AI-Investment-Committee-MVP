@@ -4,6 +4,7 @@ import {
   clearAttempts, findAccountByEmail, issueSessionCookie, recordFailedAttempt,
   sessionCookieHeader, tooManyAttempts, verifyPassword
 } from "@/lib/accounts";
+import { adminCookieHeader, isAdminEmail, issueAdminCookie } from "@/lib/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,9 +42,17 @@ export async function POST(request: Request) {
   }
 
   clearAttempts(input.email);
+  const staff = isAdminEmail(account.email);
   const res = NextResponse.json({
-    account: { id: account.id, email: account.email, createdAt: account.createdAt }
+    account: { id: account.id, email: account.email, createdAt: account.createdAt, staff }
   });
-  res.headers.set("Set-Cookie", sessionCookieHeader(issueSessionCookie(account.id)));
+
+  // Two cookies for staff. The session cookie is the identity; the second one
+  // exists only so the Edge middleware can open the access gate without reading
+  // the accounts directory, which it cannot do. Every admin endpoint re-checks
+  // the real session against the list, so this one confers nothing on its own.
+  const cookies = [sessionCookieHeader(issueSessionCookie(account.id))];
+  if (staff) cookies.push(adminCookieHeader(issueAdminCookie(account.id)));
+  for (const cookie of cookies) res.headers.append("Set-Cookie", cookie);
   return res;
 }

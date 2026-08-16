@@ -10,6 +10,7 @@ import {
   releaseReview, reserveReview
 } from "@/lib/entitlements";
 import { accountFromRequest } from "@/lib/accounts";
+import { isAdminEmail } from "@/lib/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -95,7 +96,14 @@ export async function POST(request: Request) {
   const sessionId = `sess_${randomUUID()}`;
   const agentKeys = [...SPECIALISTS.map((a) => a.key), CHAIR.key];
 
-  const reserved = await reserveReview(visitorId, sessionId);
+  /* Staff sessions are not metered: colleagues testing the product should not be
+     spending a client allowance, and an unmetered session still costs real money
+     at the provider, which is why the panel shows spend rather than hiding it. */
+  const staff = isAdminEmail(account?.email);
+
+  const reserved = staff
+    ? { plan: "staff" as const, allowance: 0, remaining: 0 }
+    : await reserveReview(visitorId, sessionId);
   if (!reserved) {
     const current = await getEntitlement(visitorId);
     const res = NextResponse.json(
@@ -135,13 +143,19 @@ export async function POST(request: Request) {
             excludedSectors: input.buildProfile?.excludedSectors ?? [],
             language: input.language
           },
-          visitorId
+          staff ? undefined : visitorId
         )
-      : runCommitteeJob(sessionId, { ...input, ticker: (input.ticker ?? "").toUpperCase() }, visitorId);
+      : runCommitteeJob(
+          sessionId,
+          { ...input, ticker: (input.ticker ?? "").toUpperCase() },
+          staff ? undefined : visitorId
+        );
 
   void job.catch(async (err) => {
     console.error("Committee job crashed", sessionId, err);
-    await releaseReview(visitorId as string, sessionId, "job crashed").catch(() => undefined);
+    if (!staff) {
+      await releaseReview(visitorId as string, sessionId, "job crashed").catch(() => undefined);
+    }
   });
 
   const res = NextResponse.json(
@@ -149,7 +163,12 @@ export async function POST(request: Request) {
       sessionId,
       status: "QUEUED",
       events: `/api/v1/sessions/${sessionId}/events`,
-      entitlement: { plan: reserved.plan, allowance: reserved.allowance, remaining: reserved.remaining }
+      entitlement: {
+        plan: reserved.plan,
+        allowance: reserved.allowance,
+        remaining: reserved.remaining,
+        metered: !staff
+      }
     },
     { status: 202, headers: { "Cache-Control": "no-store" } }
   );
