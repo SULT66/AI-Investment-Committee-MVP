@@ -29,6 +29,7 @@ const LINKS = [
   { href: "/dashboard", label: "Dashboard", match: (p: string) => p.startsWith("/dashboard") },
   { href: "/analyze", label: "Analyze", match: (p: string) => p.startsWith("/analyze") },
   { href: "/build", label: "Build", match: (p: string) => p.startsWith("/build") },
+  { href: "/portfolio", label: "Portfolio", match: (p: string) => p.startsWith("/portfolio") },
   { href: "/reports", label: "Sessions", match: (p: string) => p.startsWith("/reports") },
   { href: "/terms#plans", label: "Plans", match: () => false }
 ];

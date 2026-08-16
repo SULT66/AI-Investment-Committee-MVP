@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { AllocationPlan, type AllocationLine } from "./allocation-plan";
+import { AddToPortfolio } from "./add-to-portfolio";
+import "./portfolio.css";
 
 /**
  * Persistent Committee Report — handoff §2.1 (/report/:sessionId).
@@ -127,9 +129,16 @@ export function ReportView({ sessionId }: { sessionId: string }) {
         <div className="reportActions">
           <button onClick={() => window.print()}>Print / PDF</button>
           <a href={`/live/${report.sessionId}`}>Replay session</a>
-          <a href="/">New session</a>
+          <a href="/analyze">New session</a>
         </div>
       </header>
+
+      {/* A plan has no single instrument to add, so this only appears on a review. */}
+      {!report.allocation && report.asset.symbol && (
+        <section className="reportAdd">
+          <AddToPortfolio symbol={report.asset.symbol} sessionId={report.sessionId} />
+        </section>
+      )}
 
       {d ? (
         <section className="reportDecision">
