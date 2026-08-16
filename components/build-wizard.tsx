@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DisclosureGate } from "./disclosure-gate";
 import "./build-wizard.css";
 
@@ -12,7 +12,18 @@ import "./build-wizard.css";
  * be checked against what is actually buildable at that size, and so amounts can
  * be shown alongside percentages. It is not sent to any model and no server
  * stores it.
+ *
+ * Two things keep the answers from evaporating:
+ *  - they are written to sessionStorage on every change, so leaving the page to
+ *    read the disclosures and coming back does not start the form over;
+ *  - each step pushes a history entry, so Back - and the swipe-back gesture on a
+ *    phone, which is the same thing - moves one question back instead of
+ *    abandoning the wizard.
  */
+
+const DRAFT_KEY = "aic_build_draft";
+
+type Draft = { step: number; amount: string; risk: Risk | null; horizon: Horizon | null; goal: Goal | null };
 
 type Risk = "conservative" | "balanced" | "growth" | "aggressive";
 type Horizon = "under1" | "1to3" | "3to5" | "over5";
@@ -47,11 +58,68 @@ export function BuildWizard() {
   const [risk, setRisk] = useState<Risk | null>(null);
   const [horizon, setHorizon] = useState<Horizon | null>(null);
   const [goal, setGoal] = useState<Goal | null>(null);
+  const [restored, setRestored] = useState(false);
   const [error, setError] = useState("");
   const [exhausted, setExhausted] = useState("");
   const [starting, setStarting] = useState(false);
   const inFlight = useRef(false);
   const acknowledged = useRef(false);
+
+  // Restore first, and only then start saving: writing an empty draft on mount
+  // would wipe the one we are about to read.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw) as Partial<Draft>;
+        if (typeof draft.amount === "string") setAmount(draft.amount);
+        if (draft.risk) setRisk(draft.risk);
+        if (draft.horizon) setHorizon(draft.horizon);
+        if (draft.goal) setGoal(draft.goal);
+        if (typeof draft.step === "number" && draft.step >= 0 && draft.step <= 3) setStep(draft.step);
+      }
+    } catch {
+      /* private mode, or a draft from an older shape: start clean */
+    }
+    setRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!restored) return;
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ step, amount, risk, horizon, goal }));
+    } catch {
+      /* the wizard still works, it just will not survive leaving the page */
+    }
+  }, [restored, step, amount, risk, horizon, goal]);
+
+  /*
+   * Back should move one question back, not out of the wizard. Each forward step
+   * pushes a history entry; popstate reads the step out of it. Without this, the
+   * phone swipe-back gesture leaves the form entirely, which is exactly when
+   * people give up on it.
+   */
+  useEffect(() => {
+    if (!restored) return;
+    window.history.replaceState({ aicBuildStep: step }, "");
+
+    const onPop = (event: PopStateEvent) => {
+      const target = (event.state as { aicBuildStep?: number } | null)?.aicBuildStep;
+      if (typeof target === "number") setStep(Math.min(Math.max(target, 0), 3));
+      // No step in the entry: this is a real navigation away, so let it happen.
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    // Bound once after restore; the handler reads the step from the event, not
+    // from this closure, so it does not need re-binding on every step.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored]);
+
+  function goTo(next: number) {
+    setStep(next);
+    if (next > step) window.history.pushState({ aicBuildStep: next }, "");
+    else window.history.replaceState({ aicBuildStep: next }, "");
+  }
 
   const parsedAmount = Number(amount.replace(/[^\d.]/g, ""));
   const amountValid = Number.isFinite(parsedAmount) && parsedAmount >= 100;
@@ -102,6 +170,9 @@ export function BuildWizard() {
       // beside the percentages, so it never needs to reach the server.
       try {
         sessionStorage.setItem(`aic_build_balance_${data.sessionId}`, String(parsedAmount));
+        // The draft has done its job; leaving it behind would reopen the wizard
+        // half-filled the next time someone starts a plan.
+        sessionStorage.removeItem(DRAFT_KEY);
       } catch {
         /* private mode: the plan still works, it just shows percentages only */
       }
@@ -143,7 +214,6 @@ export function BuildWizard() {
               onChange={(e) => setAmount(e.target.value)}
               inputMode="numeric"
               placeholder="25000"
-              autoFocus
               maxLength={15}
             />
           </label>
@@ -227,12 +297,12 @@ export function BuildWizard() {
 
       <div className="wizNav">
         {step > 0 && (
-          <button className="wizBack" onClick={() => setStep(step - 1)} disabled={starting}>
+          <button className="wizBack" onClick={() => goTo(step - 1)} disabled={starting}>
             Back
           </button>
         )}
         {step < 3 ? (
-          <button className="wizNext" onClick={() => setStep(step + 1)} disabled={!canAdvance}>
+          <button className="wizNext" onClick={() => goTo(step + 1)} disabled={!canAdvance}>
             Continue
           </button>
         ) : (
