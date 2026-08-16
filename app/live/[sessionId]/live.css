@@ -279,3 +279,21 @@
   .speakerQuote{font-size:15px}
   .speakerFrame{aspect-ratio:16/10}
 }
+
+/* Ask Committee: every seat answers, so the thread needs a waiting state per
+   member rather than one spinner for the whole panel. */
+.askWaiting{display:flex;gap:5px;align-items:center;min-height:19px;margin:0}
+.askWaiting span{width:5px;height:5px;border-radius:50%;background:#5A6678;
+  animation:askDot 1.3s infinite ease-in-out}
+.askWaiting span:nth-child(2){animation-delay:.18s}
+.askWaiting span:nth-child(3){animation-delay:.36s}
+@keyframes askDot{0%,70%,100%{opacity:.25;transform:scale(.75)}35%{opacity:1;transform:scale(1)}}
+
+/* A member who cannot answer from where they sit says so once, set back so it
+   reads as an aside rather than competing with the answers that carry content. */
+.askQuiet{opacity:.6}
+.askQuiet p{font-style:italic}
+
+@media (prefers-reduced-motion:reduce){
+  .askWaiting span{animation:none;opacity:.5}
+}

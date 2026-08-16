@@ -356,7 +356,9 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
                     <span className="stageSpinner" aria-hidden="true" />
                     <p>{progressLabel}</p>
                     <p className="stageProgressNote">
-                      Seven specialists are working in parallel. A full review takes one to two minutes.
+                      {snapshot?.allocation !== undefined || snapshot?.buildProfile
+                        ? "Seven specialists are working in parallel on the allocation. A plan takes about two to three minutes — longer than a single review, because each seat argues about every asset class."
+                        : "Seven specialists are working in parallel. A full review takes one to two minutes."}
                     </p>
                   </div>
                 )}
@@ -601,36 +603,106 @@ function SpeakerPortrait({ agentKey }: { agentKey: string | null }) {
   );
 }
 
+/*
+ * Every seat answers.
+ *
+ * Seven requests go out in parallel, one per member, and each bubble fills in as
+ * that member finishes. The alternative - one request that waits for all seven -
+ * means forty seconds of nothing followed by a wall of text, and streaming from
+ * the server is not an option here because Azure buffers SSE, which is why the
+ * Live Desk needs a polling fallback in the first place.
+ *
+ * Placeholders are inserted up front in seat order, so the thread reads the same
+ * way every time regardless of who happens to answer first.
+ */
+const ASK_ORDER = [
+  "fundamental", "market", "quant", "risk", "macro", "devils_advocate", "chairman"
+];
+
+type AskTurn = {
+  id: number;
+  role: string;
+  text: string;
+  state: "waiting" | "done" | "quiet" | "failed";
+};
+
 function AskSheet({
   sessionId, ticker, onClose
 }: { sessionId: string; ticker: string; onClose: () => void }) {
   const [question, setQuestion] = useState("");
-  const [thread, setThread] = useState<Array<{ role: string; text: string }>>([]);
+  const [thread, setThread] = useState<AskTurn[]>([]);
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const nextId = useRef(0);
 
   async function send() {
     const q = question.trim();
     if (!q || busy) return;
     setBusy(true);
-    setThread((t) => [...t, { role: "you", text: q }]);
+    setNotice("");
     setQuestion("");
-    try {
-      const res = await fetch(`/api/v1/sessions/${sessionId}/questions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q })
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      const data = (await res.json()) as { turns?: Array<{ member: string; text: string }> };
-      for (const turn of data.turns ?? []) {
-        setThread((t) => [...t, { role: LABELS[turn.member] ?? turn.member, text: turn.text }]);
-      }
-    } catch {
-      setThread((t) => [...t, { role: "system", text: "The committee could not answer just now." }]);
-    } finally {
-      setBusy(false);
-    }
+
+    const askId = nextId.current;
+    nextId.current += 1 + ASK_ORDER.length;
+
+    setThread((t) => [
+      ...t,
+      { id: askId, role: "you", text: q, state: "done" },
+      ...ASK_ORDER.map((key, i) => ({
+        id: askId + 1 + i,
+        role: LABELS[key] ?? key,
+        text: "",
+        state: "waiting" as const
+      }))
+    ]);
+
+    const update = (id: number, patch: Partial<AskTurn>) =>
+      setThread((t) => t.map((turn) => (turn.id === id ? { ...turn, ...patch } : turn)));
+
+    await Promise.all(
+      ASK_ORDER.map(async (member, i) => {
+        const id = askId + 1 + i;
+        try {
+          const res = await fetch(`/api/v1/sessions/${sessionId}/questions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question: q, member })
+          });
+
+          if (res.status === 429) {
+            const body = (await res.json()) as { error?: { message?: string } };
+            setNotice(body.error?.message ?? "Too many questions just now.");
+            update(id, { state: "failed", text: "" });
+            return;
+          }
+          if (!res.ok) {
+            update(id, { state: "failed", text: "" });
+            return;
+          }
+
+          const data = (await res.json()) as {
+            turns?: Array<{ text: string }>; canAnswer?: boolean;
+          };
+          const answer = data.turns?.[0]?.text ?? "";
+
+          // A member with nothing to add says so once, quietly, rather than
+          // padding the thread with an answer they are not placed to give.
+          update(id, {
+            text: answer,
+            state: answer ? (data.canAnswer === false ? "quiet" : "done") : "failed"
+          });
+        } catch {
+          update(id, { state: "failed", text: "" });
+        }
+      })
+    );
+
+    setBusy(false);
   }
+
+  // Seats that failed outright are dropped once everything has settled; an empty
+  // bubble is worse than no bubble.
+  const visible = thread.filter((t) => t.state !== "failed" || busy);
 
   return (
     <div className="askWrap" role="dialog" aria-label="Ask the committee">
@@ -642,16 +714,32 @@ function AskSheet({
         <div className="askThread">
           {!thread.length && (
             <p className="askHint">
-              Follow-up questions about this review are free — they do not consume another review.
+              Ask once and every member answers from their own angle. Follow-up questions are
+              free — they do not consume another review.
             </p>
           )}
-          {thread.map((m, i) => (
-            <div key={i} className={m.role === "you" ? "askMine" : "askTheirs"}>
+          {visible.map((m) => (
+            <div
+              key={m.id}
+              className={
+                m.role === "you"
+                  ? "askMine"
+                  : m.state === "quiet"
+                    ? "askTheirs askQuiet"
+                    : "askTheirs"
+              }
+            >
               <small>{m.role}</small>
-              <p>{m.text}</p>
+              {m.state === "waiting" ? (
+                <p className="askWaiting" aria-label={`${m.role} is thinking`}>
+                  <span /><span /><span />
+                </p>
+              ) : (
+                <p>{m.text}</p>
+              )}
             </div>
           ))}
-          {busy && <p className="askHint">Committee is responding…</p>}
+          {notice && <p className="askHint">{notice}</p>}
         </div>
         <div className="askInput">
           <input
@@ -660,8 +748,11 @@ function AskSheet({
             onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
             placeholder="Why does the Risk Agent disagree?"
             maxLength={400}
+            disabled={busy}
           />
-          <button onClick={() => void send()} disabled={busy || !question.trim()}>Ask</button>
+          <button onClick={() => void send()} disabled={busy || !question.trim()}>
+            {busy ? "Asking…" : "Ask"}
+          </button>
         </div>
       </div>
     </div>
