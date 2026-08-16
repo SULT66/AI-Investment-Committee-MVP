@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createAccount, issueSessionCookie, sessionCookieHeader } from "@/lib/accounts";
+import { createAccount, createVerifyToken, issueSessionCookie, sessionCookieHeader } from "@/lib/accounts";
 import { VISITOR_COOKIE, adoptVisitorLedger, readVisitorCookie } from "@/lib/entitlements";
+import { baseUrl, sendVerifyEmail } from "@/lib/auth-emails";
+import { mailerConfigured } from "@/lib/mailer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,6 +48,20 @@ export async function POST(request: Request) {
 
   // Trial usage follows the person, not the browser.
   await adoptVisitorLedger(result.account.id, visitorId);
+
+  // Confirmation is sent, not enforced. A mail failure must not cost someone the
+  // account they just created, so it is logged and the sign-up still succeeds.
+  if (mailerConfigured()) {
+    try {
+      const issued = await createVerifyToken(result.account.email);
+      if (issued) {
+        const sent = await sendVerifyEmail(result.account.email, issued.token, baseUrl(request));
+        if (!sent.ok) console.error("[register] confirmation email not delivered:", sent.reason);
+      }
+    } catch (error) {
+      console.error("[register] confirmation email failed:", error instanceof Error ? error.message : error);
+    }
+  }
 
   const res = NextResponse.json({ account: result.account }, { status: 201 });
   res.headers.set("Set-Cookie", sessionCookieHeader(issueSessionCookie(result.account.id)));

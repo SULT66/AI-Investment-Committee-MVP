@@ -37,7 +37,7 @@ export default function TermsPage() {
       <p>
         AIC is operated by <span className="fill">[LEGAL ENTITY NAME]</span>,{" "}
         <span className="fill">[REGISTERED ADDRESS]</span>, <span className="fill">[JURISDICTION]</span>.
-        Contact: <span className="fill">[LEGAL/PRIVACY EMAIL]</span>.
+        Contact: <a href="mailto:aic@lareo.ai">aic@lareo.ai</a>.
       </p>
 
       <h2>2. About AIC</h2>
@@ -316,7 +316,7 @@ export default function TermsPage() {
       <p>
         <span className="fill">[LEGAL ENTITY NAME]</span><br />
         <span className="fill">[REGISTERED ADDRESS]</span><br />
-        <span className="fill">[LEGAL/PRIVACY EMAIL]</span>
+        <a href="mailto:aic@lareo.ai">aic@lareo.ai</a>
       </p>
 
       <footer className="legalFoot">

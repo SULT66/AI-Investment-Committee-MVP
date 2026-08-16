@@ -1,0 +1,75 @@
+/*
+ * Additions for the account and reset forms.
+ *
+ * Additive only: new class names, plus two rules that fix behaviour rather than
+ * change appearance. Nothing here overrides account.css.
+ */
+
+/* Safari zooms the page when a focused input is under 16px. The zoom does not
+   reverse on blur, which leaves the layout stranded mid-review on a phone. */
+.account input,
+.account button,
+.account select,
+.account textarea {
+  font-size: max(1rem, 16px);
+}
+
+/* Fields should reach the edges of a narrow screen rather than sitting in a
+   column sized for a desktop form. */
+.account input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.authBanner {
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid currentColor;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.authBannerGood {
+  color: #1c6b45;
+  background: rgba(28, 107, 69, 0.08);
+}
+
+.authBannerWarn {
+  color: #8a5a12;
+  background: rgba(138, 90, 18, 0.08);
+}
+
+/* A quiet text link for secondary paths: forgotten password, resend, go back.
+   Styled as a link because it behaves like one; kept a button because it acts
+   on this page rather than navigating. */
+.authTextButton {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.authTextButton:hover {
+  opacity: 0.75;
+}
+
+.authTextButton:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.authAside {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .authBanner {
+    transition: none;
+  }
+}

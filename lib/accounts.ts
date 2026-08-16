@@ -18,9 +18,13 @@ import { promisify } from "util";
  *  - comparisons are constant-time.
  *  - the password itself is never written anywhere, including logs.
  *
- * NOT IMPLEMENTED, and it matters: email verification and password reset. Both
- * need an email provider. Until one is configured, a forgotten password means a
- * lost account, so sign-up says so plainly.
+ * Reset and verification tokens are stored as SHA-256 hashes, never in the clear:
+ * whoever can read the account directory still cannot sign in as anybody.
+ *
+ * Changing a password stamps passwordChangedAt, and any session cookie issued
+ * before that stamp stops validating. Without it, a stolen session outlives the
+ * password reset meant to end it. This checks the stamp against the cookie's own
+ * issue time, so the cookie format is unchanged and existing sessions survive.
  */
 
 const scryptAsync = promisify(scrypt) as (
@@ -35,6 +39,10 @@ const SCRYPT_COST = 16384;      // 2^14 — a few hundred ms, tuned for a web re
 const SESSION_DAYS = 30;
 export const SESSION_COOKIE = "aic_session";
 
+/** Long enough to survive a slow inbox, short enough to limit a leaked link. */
+export const RESET_TOKEN_MINUTES = 60;
+export const VERIFY_TOKEN_HOURS = 48;
+
 export type Account = {
   id: string;
   email: string;
@@ -43,9 +51,22 @@ export type Account = {
   passwordHash: string;
   /** the visitor id this account was created from, so trial usage carries over */
   originVisitorId: string | null;
+  /** cookies issued before this moment stop validating */
+  passwordChangedAt?: string | null;
+  emailVerifiedAt?: string | null;
+  verifyTokenHash?: string | null;
+  verifyExpiresAt?: string | null;
+  resetTokenHash?: string | null;
+  resetExpiresAt?: string | null;
 };
 
-export type PublicAccount = { id: string; email: string; createdAt: string };
+export type PublicAccount = {
+  id: string;
+  email: string;
+  createdAt: string;
+  /** optional so existing call sites that build this shape still type-check */
+  emailVerified?: boolean;
+};
 
 function baseDir(): string {
   if (process.env.AIC_ACCOUNT_DIR) return process.env.AIC_ACCOUNT_DIR;
@@ -64,10 +85,24 @@ const normaliseEmail = (email: string) => email.trim().toLowerCase();
 const emailKey = (email: string) =>
   createHash("sha256").update(normaliseEmail(email)).digest("hex").slice(0, 32);
 
+const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
+
+export const publicView = (account: Account): PublicAccount => ({
+  id: account.id,
+  email: account.email,
+  createdAt: account.createdAt,
+  emailVerified: Boolean(account.emailVerifiedAt)
+});
+
 async function writeAtomic(path: string, contents: string): Promise<void> {
   const temp = `${path}.${process.pid}.${Date.now()}.tmp`;
   await writeFile(temp, contents, "utf8");
   await rename(temp, path);
+}
+
+async function saveAccount(account: Account): Promise<void> {
+  const dir = await ensureDir();
+  await writeAtomic(join(dir, `${emailKey(account.email)}.json`), JSON.stringify(account));
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -100,18 +135,27 @@ export async function findAccountByEmail(email: string): Promise<Account | null>
   }
 }
 
-export async function findAccountById(id: string): Promise<Account | null> {
-  if (!/^acc_[A-Za-z0-9-]{1,64}$/.test(id)) return null;
+async function allAccounts(): Promise<Account[]> {
+  const found: Account[] = [];
   try {
     const dir = await ensureDir();
     for (const name of await readdir(dir)) {
       if (!name.endsWith(".json")) continue;
-      const account = JSON.parse(await readFile(join(dir, name), "utf8")) as Account;
-      if (account.id === id) return account;
+      try {
+        found.push(JSON.parse(await readFile(join(dir, name), "utf8")) as Account);
+      } catch {
+        /* skip a half-written or corrupt file rather than failing the request */
+      }
     }
   } catch {
     /* fall through */
   }
+  return found;
+}
+
+export async function findAccountById(id: string): Promise<Account | null> {
+  if (!/^acc_[A-Za-z0-9-]{1,64}$/.test(id)) return null;
+  for (const account of await allAccounts()) if (account.id === id) return account;
   return null;
 }
 
@@ -134,12 +178,106 @@ export async function createAccount(
     email: clean,
     createdAt: new Date().toISOString(),
     passwordHash: await hashPassword(password),
-    originVisitorId
+    originVisitorId,
+    passwordChangedAt: new Date().toISOString(),
+    emailVerifiedAt: null
   };
 
-  const dir = await ensureDir();
-  await writeAtomic(join(dir, `${emailKey(clean)}.json`), JSON.stringify(account));
-  return { ok: true, account: { id: account.id, email: account.email, createdAt: account.createdAt } };
+  await saveAccount(account);
+  return { ok: true, account: publicView(account) };
+}
+
+/* ------------------------------------------------------ password reset */
+
+/**
+ * Issues a reset token, or null when no such account exists. Callers must answer
+ * the same way either way: a form that says "no account with that email" is a
+ * free tool for working out who has registered.
+ */
+export async function createResetToken(email: string): Promise<{ token: string; account: Account } | null> {
+  const account = await findAccountByEmail(email);
+  if (!account) return null;
+
+  const token = randomBytes(32).toString("hex");
+  account.resetTokenHash = tokenHash(token);
+  account.resetExpiresAt = new Date(Date.now() + RESET_TOKEN_MINUTES * 60 * 1000).toISOString();
+  await saveAccount(account);
+  return { token, account };
+}
+
+export type ResetResult =
+  | { ok: true; account: PublicAccount }
+  | { ok: false; reason: "invalid_token" | "expired_token" | "weak_password" };
+
+/** Single use: the token is cleared whether or not the caller comes back. */
+export async function consumeResetToken(token: string, newPassword: string): Promise<ResetResult> {
+  if (!/^[a-f0-9]{64}$/.test(token)) return { ok: false, reason: "invalid_token" };
+  if (newPassword.length < 10) return { ok: false, reason: "weak_password" };
+
+  const wanted = tokenHash(token);
+  const account = (await allAccounts()).find((candidate) => {
+    if (!candidate.resetTokenHash || candidate.resetTokenHash.length !== wanted.length) return false;
+    try {
+      return timingSafeEqual(Buffer.from(candidate.resetTokenHash), Buffer.from(wanted));
+    } catch {
+      return false;
+    }
+  });
+  if (!account) return { ok: false, reason: "invalid_token" };
+
+  const expired = !account.resetExpiresAt || Date.parse(account.resetExpiresAt) < Date.now();
+  if (expired) {
+    account.resetTokenHash = null;
+    account.resetExpiresAt = null;
+    await saveAccount(account);
+    return { ok: false, reason: "expired_token" };
+  }
+
+  account.passwordHash = await hashPassword(newPassword);
+  account.resetTokenHash = null;
+  account.resetExpiresAt = null;
+  account.passwordChangedAt = new Date().toISOString();   // signs out every existing session
+  // Reaching the inbox proves the address, so a reset also verifies it.
+  account.emailVerifiedAt = account.emailVerifiedAt ?? new Date().toISOString();
+  await saveAccount(account);
+
+  clearAttempts(account.email);
+  return { ok: true, account: publicView(account) };
+}
+
+/* ------------------------------------------------- email verification */
+
+export async function createVerifyToken(email: string): Promise<{ token: string; account: Account } | null> {
+  const account = await findAccountByEmail(email);
+  if (!account || account.emailVerifiedAt) return null;
+
+  const token = randomBytes(32).toString("hex");
+  account.verifyTokenHash = tokenHash(token);
+  account.verifyExpiresAt = new Date(Date.now() + VERIFY_TOKEN_HOURS * 60 * 60 * 1000).toISOString();
+  await saveAccount(account);
+  return { token, account };
+}
+
+export type VerifyResult =
+  | { ok: true; email: string }
+  | { ok: false; reason: "invalid_token" | "expired_token" };
+
+export async function consumeVerifyToken(token: string): Promise<VerifyResult> {
+  if (!/^[a-f0-9]{64}$/.test(token)) return { ok: false, reason: "invalid_token" };
+
+  const wanted = tokenHash(token);
+  const account = (await allAccounts()).find((candidate) => candidate.verifyTokenHash === wanted);
+  if (!account) return { ok: false, reason: "invalid_token" };
+
+  if (!account.verifyExpiresAt || Date.parse(account.verifyExpiresAt) < Date.now()) {
+    return { ok: false, reason: "expired_token" };
+  }
+
+  account.emailVerifiedAt = new Date().toISOString();
+  account.verifyTokenHash = null;
+  account.verifyExpiresAt = null;
+  await saveAccount(account);
+  return { ok: true, email: account.email };
 }
 
 /* ---------------------------------------------------------------- sessions */
@@ -149,7 +287,8 @@ function sessionSecret(): string {
 }
 
 /**
- * Session cookie: <accountId>.<expiryMs>.<hmac>.
+ * Session cookie: <accountId>.<expiryMs>.<hmac> — unchanged from before, so
+ * sessions issued by the existing login route keep working.
  * Stateless, so signing out everywhere is done by rotating the secret. The expiry
  * is inside the signature, so it cannot be extended by editing the cookie.
  */
@@ -160,7 +299,10 @@ export function issueSessionCookie(accountId: string): string {
   return `${payload}.${mac}`;
 }
 
-export function readSessionCookie(raw: string | undefined): string | null {
+/** The cookie carries no issue time, so it is recovered from the fixed lifetime. */
+export type SessionParts = { accountId: string; issuedAt: number };
+
+export function readSessionParts(raw: string | undefined): SessionParts | null {
   if (!raw) return null;
   const parts = raw.split(".");
   if (parts.length !== 3) return null;
@@ -176,8 +318,14 @@ export function readSessionCookie(raw: string | undefined): string | null {
     return null;
   }
 
-  if (!Number.isFinite(Number(expiryText)) || Number(expiryText) < Date.now()) return null;
-  return accountId;
+  const expiry = Number(expiryText);
+  if (!Number.isFinite(expiry) || expiry < Date.now()) return null;
+  return { accountId, issuedAt: expiry - SESSION_DAYS * 24 * 60 * 60 * 1000 };
+}
+
+/** Kept for existing callers that only want the id. */
+export function readSessionCookie(raw: string | undefined): string | null {
+  return readSessionParts(raw)?.accountId ?? null;
 }
 
 export function sessionCookieHeader(value: string, maxAgeSeconds = SESSION_DAYS * 24 * 60 * 60): string {
@@ -189,20 +337,25 @@ export function sessionCookieHeader(value: string, maxAgeSeconds = SESSION_DAYS 
 
 export const clearedSessionCookie = () => sessionCookieHeader("", 0);
 
-/** Reads the signed-in account from a request, or null. */
-export async function accountFromRequest(request: Request): Promise<PublicAccount | null> {
-  const header = request.headers.get("cookie") ?? "";
-  const raw = header
+export function cookieValue(request: Request, name: string): string | undefined {
+  const raw = (request.headers.get("cookie") ?? "")
     .split(";")
     .map((c) => c.trim())
-    .find((c) => c.startsWith(`${SESSION_COOKIE}=`))
-    ?.slice(SESSION_COOKIE.length + 1);
+    .find((c) => c.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+  return raw ? decodeURIComponent(raw) : undefined;
+}
 
-  const accountId = readSessionCookie(raw ? decodeURIComponent(raw) : undefined);
-  if (!accountId) return null;
+/** Reads the signed-in account from a request, or null. */
+export async function accountFromRequest(request: Request): Promise<PublicAccount | null> {
+  const parts = readSessionParts(cookieValue(request, SESSION_COOKIE));
+  if (!parts) return null;
 
-  const account = await findAccountById(accountId);
-  return account ? { id: account.id, email: account.email, createdAt: account.createdAt } : null;
+  const account = await findAccountById(parts.accountId);
+  if (!account) return null;
+  // A cookie older than the last password change is no longer trusted.
+  if (account.passwordChangedAt && Date.parse(account.passwordChangedAt) > parts.issuedAt) return null;
+  return publicView(account);
 }
 
 /* ------------------------------------------------------- login throttling */
@@ -232,4 +385,35 @@ export function recordFailedAttempt(email: string): void {
 
 export function clearAttempts(email: string): void {
   attempts.delete(normaliseEmail(email));
+}
+
+/* ------------------------------------------------ reset request throttling */
+
+const resetRequests = new Map<string, number[]>();
+const RESET_WINDOW_MS = 60 * 60 * 1000;
+const MAX_RESET_REQUESTS = 3;
+
+/**
+ * Caps reset emails per address. Without this the form is a way to flood
+ * somebody else's inbox from your domain, which is both rude and a fast route
+ * to a spam listing.
+ *
+ * In-process, like the login limiter: it resets on restart and is per instance.
+ * Good enough at one instance; move both to the shared store with the session
+ * data when that changes.
+ */
+export function tooManyResetRequests(email: string): boolean {
+  const key = normaliseEmail(email);
+  const now = Date.now();
+  const recent = (resetRequests.get(key) ?? []).filter((at) => now - at < RESET_WINDOW_MS);
+  resetRequests.set(key, recent);
+  return recent.length >= MAX_RESET_REQUESTS;
+}
+
+export function recordResetRequest(email: string): void {
+  const key = normaliseEmail(email);
+  const now = Date.now();
+  const recent = (resetRequests.get(key) ?? []).filter((at) => now - at < RESET_WINDOW_MS);
+  recent.push(now);
+  resetRequests.set(key, recent);
 }
