@@ -1,0 +1,19 @@
+/* Analyze wizard. Shares build-wizard.css for the frame; only what is specific
+   to picking an instrument lives here. */
+
+.anzMatches{list-style:none;margin:14px 0 0;padding:0;border:1px solid #1b3350;border-radius:11px;
+  overflow:hidden}
+.anzMatches li+li{border-top:1px solid rgba(27,51,80,.7)}
+.anzMatches button{display:flex;flex-direction:column;gap:3px;width:100%;text-align:left;
+  background:none;border:0;color:#E9EFF7;font:inherit;padding:12px 14px;cursor:pointer;min-height:46px}
+.anzMatches button:hover{background:rgba(77,163,255,.08)}
+.anzMatches button:focus-visible{outline:2px solid #4DA3FF;outline-offset:-2px}
+.anzMatches b{font-size:13.5px;letter-spacing:.02em}
+.anzMatches span{font-size:12px;color:#8A97AA;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+
+.anzChosen{margin:14px 0 0;padding:11px 14px;border:1px solid #4DA3FF;border-radius:9px;
+  background:rgba(77,163,255,.07);font-size:13px;color:#E9EFF7}
+.anzChosen b{letter-spacing:.02em}
+
+.anzSecond{margin-top:18px}

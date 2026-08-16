@@ -114,7 +114,7 @@ export function AllocationPlan({
                     <ul>
                       {l.candidates.map((c) => (
                         <li key={c}>
-                          <a href={`/?ticker=${encodeURIComponent(c)}`}>{c}</a>
+                          <a href={`/analyze?ticker=${encodeURIComponent(c)}`}>{c}</a>
                         </li>
                       ))}
                     </ul>

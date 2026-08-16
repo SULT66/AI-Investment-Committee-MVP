@@ -55,12 +55,9 @@ export function Dashboard({ onEmpty }: { onEmpty: React.ReactNode }) {
   const [open, setOpen] = useState<string | null>(null);
 
   /*
-   * A deep link to an instrument must reach the search form, not this page.
-   *
-   * Candidate tickers in a plan link to /?ticker=VCIT, and the report's own
-   * links do the same. Once the dashboard started answering for "/", those
-   * links landed on it instead: somebody clicking a candidate to research it
-   * was shown their own history rather than the review they asked for.
+   * A ticker in the URL belongs to the analyze wizard, which asks the questions
+   * a review needs. Older links point at /?ticker=X, so they are forwarded
+   * rather than broken.
    *
    * Decided in the initial state rather than an effect, so the dashboard is
    * never fetched and never briefly rendered on the way past.
@@ -68,7 +65,9 @@ export function Dashboard({ onEmpty }: { onEmpty: React.ReactNode }) {
   const [deepLink] = useState(() => {
     if (typeof window === "undefined") return false;
     const wanted = new URLSearchParams(window.location.search).get("ticker");
-    return Boolean(wanted && /^[A-Za-z0-9.\-]{1,12}$/.test(wanted));
+    if (!wanted || !/^[A-Za-z0-9.\-]{1,12}$/.test(wanted)) return false;
+    window.location.replace(`/analyze?ticker=${encodeURIComponent(wanted)}`);
+    return true;
   });
 
   useEffect(() => {
@@ -153,7 +152,7 @@ export function Dashboard({ onEmpty }: { onEmpty: React.ReactNode }) {
                         <Link className="dashPrimary" href={`/report/${w.sessionId}`}>
                           Read the report
                         </Link>
-                        <Link className="dashSecondary" href={`/?ticker=${encodeURIComponent(w.symbol)}`}>
+                        <Link className="dashSecondary" href={`/analyze?ticker=${encodeURIComponent(w.symbol)}`}>
                           Review it again
                         </Link>
                       </div>
@@ -196,7 +195,7 @@ export function Dashboard({ onEmpty }: { onEmpty: React.ReactNode }) {
       )}
 
       <section className="dashStart">
-        <Link className="dashPrimary" href="/">Review an instrument</Link>
+        <Link className="dashPrimary" href="/analyze">Review an instrument</Link>
         <Link className="dashSecondary" href="/build">Build a plan</Link>
       </section>
 
