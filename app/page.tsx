@@ -1,6 +1,5 @@
 import { SessionStarter } from "@/components/session-starter";
 import { PremiumMarketDeck } from "@/components/premium-market-deck";
-import { UsageBadge } from "@/components/usage-badge";
 
 /**
  * Home — handoff §2.2.
@@ -15,12 +14,6 @@ import { UsageBadge } from "@/components/usage-badge";
 export default function HomePage() {
   return (
     <main className="landing">
-      <nav className="nav">
-        <div className="brand">AIC</div>
-        <span>AI Investment Committee</span>
-        <UsageBadge />
-      </nav>
-
       <section className="hero">
         <div>
           <p className="eyebrow">AI INVESTMENT RESEARCH &amp; DECISION SUPPORT</p>

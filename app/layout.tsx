@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
+import { SiteNav } from "@/components/site-nav";
 
 export const metadata: Metadata = {
   title: "AI Investment Committee",
@@ -11,6 +12,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
+        <SiteNav />
         {children}
 
         <Script

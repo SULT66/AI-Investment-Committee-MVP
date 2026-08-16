@@ -134,7 +134,7 @@ export default function TermsPage() {
         particular locations or jurisdictions.
       </p>
 
-      <h2>12. Plans</h2>
+      <h2 id="plans">12. Plans</h2>
       <div className="legalDraft">
         <h2>Not yet available for purchase</h2>
         <p>
