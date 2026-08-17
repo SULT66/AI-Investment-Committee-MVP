@@ -1,9 +1,10 @@
-import { mkdir, readFile, rename, writeFile } from "fs/promises";
+import { mkdir, readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { createHash } from "crypto";
 import { getMarketQuote, type MarketQuote } from "./market-data";
+import { writeFileAtomic } from "./atomic-write";
 
 /**
  * What a returning client needs: when they were last here, and what the market
@@ -43,11 +44,7 @@ function stateDir(): string {
 const ownerKey = (ownerId: string) =>
   createHash("sha256").update(ownerId).digest("hex").slice(0, 32);
 
-async function writeAtomic(path: string, contents: string): Promise<void> {
-  const temp = `${path}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(temp, contents, "utf8");
-  await rename(temp, path);
-}
+const writeAtomic = writeFileAtomic;
 
 /**
  * Reads the visit marker and rolls it forward.

@@ -1,8 +1,9 @@
-import { mkdir, readFile, rename, writeFile } from "fs/promises";
+import { mkdir, readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { createHmac, randomUUID, timingSafeEqual } from "crypto";
+import { writeFileAtomic } from "./atomic-write";
 
 /**
  * Entitlements and the usage ledger.
@@ -119,9 +120,7 @@ async function readLedger(visitorId: string): Promise<LedgerEntry[]> {
 async function writeLedger(visitorId: string, entries: LedgerEntry[]): Promise<void> {
   const dir = await ensureDir();
   const target = fileFor(dir, visitorId);
-  const temp = `${target}.${process.pid}.tmp`;
-  await writeFile(temp, JSON.stringify(entries), "utf8");
-  await rename(temp, target);
+  await writeFileAtomic(target, JSON.stringify(entries));
 }
 
 const queues = new Map<string, Promise<unknown>>();

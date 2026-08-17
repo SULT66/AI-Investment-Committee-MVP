@@ -1,8 +1,9 @@
-import { mkdir, readFile, rename, unlink, writeFile, readdir, stat } from "fs/promises";
+import { mkdir, readFile, unlink, readdir, stat } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import type { AgentKey } from "./agent-registry";
+import { writeFileAtomic } from "./atomic-write";
 
 /**
  * Durable session store.
@@ -152,9 +153,7 @@ async function writeFileFor(id: string, data: SessionFile): Promise<void> {
   if (!clean) return;
   const dir = await ensureDir();
   const target = filePath(dir, clean);
-  const temp = target + "." + process.pid + "." + Date.now() + ".tmp";
-  await writeFile(temp, JSON.stringify(data), "utf8");
-  await rename(temp, target);
+  await writeFileAtomic(target, JSON.stringify(data));
 }
 
 const queues = new Map<string, Promise<unknown>>();
@@ -268,8 +267,21 @@ async function pruneOldSessions(): Promise<void> {
     const dir = await ensureDir();
     const cutoff = Date.now() - SESSION_TTL_MS;
     for (const name of await readdir(dir)) {
-      if (!name.endsWith(".json")) continue;
       const full = join(dir, name);
+
+      /* Sweep abandoned temp files too. A rename that fails on the Azure Files
+         mount leaves one behind, and this pruner used to skip anything that was
+         not .json - so they accumulated with nothing to remove them. An hour is
+         long enough that a write in progress is never touched. */
+      if (name.endsWith(".tmp")) {
+        const info = await stat(full).catch(() => null);
+        if (info && Date.now() - info.mtimeMs > 60 * 60 * 1000) {
+          await unlink(full).catch(() => undefined);
+        }
+        continue;
+      }
+
+      if (!name.endsWith(".json")) continue;
       const info = await stat(full).catch(() => null);
       if (info && info.mtimeMs < cutoff) await unlink(full).catch(() => undefined);
     }

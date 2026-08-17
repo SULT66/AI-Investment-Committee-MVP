@@ -1,10 +1,11 @@
-import { mkdir, readFile, rename, writeFile, readdir } from "fs/promises";
+import { mkdir, readFile, readdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import type { SessionSnapshot } from "./session-store";
 import { getAgent } from "./agent-registry";
 import { recordReport } from "./report-index";
+import { writeFileAtomic } from "./atomic-write";
 
 /**
  * Committee reports.
@@ -188,9 +189,7 @@ export async function saveReport(snapshot: SessionSnapshot): Promise<CommitteeRe
 
   const dir = await ensureDir();
   const target = fileFor(dir, clean, version);
-  const temp = `${target}.${process.pid}.tmp`;
-  await writeFile(temp, JSON.stringify(report), "utf8");
-  await rename(temp, target);
+  await writeFileAtomic(target, JSON.stringify(report));
 
   await recordReport(snapshot.ownerId, {
     sessionId: clean,

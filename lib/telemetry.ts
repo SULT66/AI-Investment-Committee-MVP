@@ -1,7 +1,8 @@
-import { mkdir, readFile, readdir, rename, writeFile, unlink, stat } from "fs/promises";
+import { mkdir, readFile, readdir, unlink, stat } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import { writeFileAtomic } from "./atomic-write";
 
 /**
  * Operational telemetry.
@@ -81,9 +82,7 @@ export async function record(event: Omit<TelemetryEvent, "at">): Promise<void> {
       } catch {
         /* first event of the day */
       }
-      const temp = `${file}.${process.pid}.tmp`;
-      await writeFile(temp, existing + JSON.stringify(entry) + "\n", "utf8");
-      await rename(temp, file);
+      await writeFileAtomic(file, existing + JSON.stringify(entry) + "\n");
     });
   } catch {
     // Telemetry must never take down a session.

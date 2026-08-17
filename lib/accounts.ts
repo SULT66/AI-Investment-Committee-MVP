@@ -1,9 +1,10 @@
-import { mkdir, readFile, readdir, rename, writeFile } from "fs/promises";
+import { mkdir, readFile, readdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { createHash, createHmac, randomBytes, randomUUID, scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import { writeFileAtomic } from "./atomic-write";
 
 /**
  * Accounts.
@@ -94,11 +95,7 @@ export const publicView = (account: Account): PublicAccount => ({
   emailVerified: Boolean(account.emailVerifiedAt)
 });
 
-async function writeAtomic(path: string, contents: string): Promise<void> {
-  const temp = `${path}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(temp, contents, "utf8");
-  await rename(temp, path);
-}
+const writeAtomic = writeFileAtomic;
 
 async function saveAccount(account: Account): Promise<void> {
   const dir = await ensureDir();

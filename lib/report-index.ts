@@ -1,8 +1,9 @@
-import { mkdir, readFile, rename, writeFile } from "fs/promises";
+import { mkdir, readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { createHash } from "crypto";
+import { writeFileAtomic } from "./atomic-write";
 
 /**
  * What a client has already run.
@@ -52,11 +53,7 @@ async function ensureDir(): Promise<string> {
 const ownerKey = (ownerId: string) =>
   createHash("sha256").update(ownerId).digest("hex").slice(0, 32);
 
-async function writeAtomic(path: string, contents: string): Promise<void> {
-  const temp = `${path}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(temp, contents, "utf8");
-  await rename(temp, path);
-}
+const writeAtomic = writeFileAtomic;
 
 export async function listReports(ownerId: string | null | undefined): Promise<ReportIndexEntry[]> {
   if (!ownerId) return [];

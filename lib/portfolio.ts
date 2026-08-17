@@ -1,8 +1,9 @@
-import { mkdir, readFile, rename, writeFile } from "fs/promises";
+import { mkdir, readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { createHash } from "crypto";
+import { writeFileAtomic } from "./atomic-write";
 
 /**
  * A portfolio the client keeps themselves.
@@ -42,11 +43,7 @@ const ownerKey = (ownerId: string) =>
 export const normaliseSymbol = (raw: string) => raw.trim().toUpperCase();
 export const validSymbol = (raw: string) => /^[A-Z0-9.\-:]{1,16}$/.test(normaliseSymbol(raw));
 
-async function writeAtomic(path: string, contents: string): Promise<void> {
-  const temp = `${path}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(temp, contents, "utf8");
-  await rename(temp, path);
-}
+const writeAtomic = writeFileAtomic;
 
 export async function getPortfolio(ownerId: string | null | undefined): Promise<Holding[]> {
   if (!ownerId) return [];
