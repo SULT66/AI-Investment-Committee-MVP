@@ -439,6 +439,29 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
         {/* ---- evidence, keyed to whoever is speaking ---- */}
         <aside className="deskEvidence">
           <h3>{activeKey ? FOCUS[activeKey] ?? "Evidence" : "Live data"}</h3>
+
+          {/* The chairman's card promised a vote summary and showed the market
+              grid underneath it, which read as a mislabelled panel. The votes
+              are already on the snapshot, so show them. */}
+          {activeKey === "chairman" && (
+            <ul className="voteTally">
+              {agents
+                .filter((a) => a.agentKey !== "chairman")
+                .map((a) => (
+                  <li key={a.agentKey}>
+                    <span className="voteWho">{LABELS[a.agentKey] ?? a.agentKey}</span>
+                    <span className={`voteCall vote-${(a.vote ?? "none").replace(/\s+/g, "_")}`}>
+                      {a.vote ?? (a.status === "completed" ? "no vote" : "…")}
+                    </span>
+                    <span className="voteConf">
+                      {typeof a.confidence === "number" ? `${Math.round(a.confidence * 100)}%` : "—"}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          )}
+
+          <h4 className="evidenceSub">Market data</h4>
           <dl className="evidenceGrid">
             <div><dt>Price</dt><dd>{md ? fmt(md.currentPrice) : "—"}</dd></div>
             <div><dt>Day range</dt><dd>{md ? `${fmt(md.low)} – ${fmt(md.high)}` : "—"}</dd></div>
@@ -490,7 +513,9 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
               <p className={failure ? "pendingLabel failed" : "pendingLabel"}>
                 {failure ? "NOT COMPLETED" : "PENDING"}
               </p>
-              <p className="pendingNote">{done} of {total} agents completed</p>
+              <p className="pendingNote">
+                {done} of {total} specialists completed · the Chairman speaks last
+              </p>
               <div className="tally">
                 <span className="up"><b>{tally.buy}</b>BUY</span>
                 <span className="warn"><b>{tally.hold}</b>HOLD</span>

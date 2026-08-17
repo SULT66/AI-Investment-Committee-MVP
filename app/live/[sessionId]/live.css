@@ -4,9 +4,20 @@
   --bg:#04070E; --panel:#0A1119; --line:#16202F; --ink:#E9EFF7; --dim:#8A97AA;
   --accent:#4DA3FF; --up:#22C55E; --down:#EF4444; --warn:#F5B84D;
   --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  /* Height of the fixed disclosure bar, kept in one place so the spacing that
+     clears it cannot drift away from the bar itself. */
+  --deskFootH:34px;
   min-height:100vh; background:var(--bg); color:var(--ink);
   display:flex; flex-direction:column;
+  /* The disclosure bar and the Ask button are both fixed, so the page has to end
+     above them. Without this the last card - and the risk disclosure itself -
+     scrolled underneath and could not be read. */
+  padding-bottom:calc(var(--deskFootH) + 62px + env(safe-area-inset-bottom, 0px));
 }
+
+/* Same value outside .desk, so anything portalled out of the tree still clears
+   the bar rather than silently losing the declaration to an unknown variable. */
+:root{--deskFootH:34px}
 
 /* ---------- header ---------- */
 .deskHeader{
@@ -192,7 +203,10 @@
 }
 .reportCta:hover{filter:brightness(1.08)}
 .askButton{
-  position:fixed; right:18px; bottom:46px; z-index:30; background:var(--accent); color:#04101F;
+  /* Clears the fixed disclosure bar and the phone's own gesture area. It used to
+     sit on top of the last line of whatever was on screen. */
+  position:fixed; right:18px; z-index:30; background:var(--accent); color:#04101F;
+  bottom:calc(var(--deskFootH) + 14px + env(safe-area-inset-bottom, 0px));
   border:none; border-radius:999px; padding:12px 20px; font:inherit; font-size:13.5px;
   font-weight:600; cursor:pointer; box-shadow:0 8px 24px rgba(0,0,0,.45);
 }
@@ -227,6 +241,7 @@
 .deskFoot span{color:#5A6478}
 .deskFoot{
   position:fixed; left:0; right:0; bottom:0; z-index:25; padding:7px 16px;
+  padding-bottom:calc(7px + env(safe-area-inset-bottom, 0px));
   background:rgba(4,7,14,.94); border-top:1px solid var(--line);
   font-family:var(--mono); font-size:9.5px; letter-spacing:.05em; color:#5A6478;
 }
@@ -249,7 +264,9 @@
 
 /* ---------- desktop: full Live Investment Desk ---------- */
 @media(min-width:1200px){
-  .desk{height:100vh; overflow:hidden}
+  /* Desktop is a fixed-height grid with its own scrolling columns, so the mobile
+     bottom padding would steal a row rather than clear anything. */
+  .desk{height:100vh; overflow:hidden; padding-bottom:0; --deskFootH:26px}
   .deskBody{
     grid-template-columns:minmax(0,1.9fr) minmax(290px,1fr) minmax(330px,1fr);
     align-items:stretch; min-height:0; overflow:hidden; padding-bottom:34px;
@@ -297,3 +314,23 @@
 @media (prefers-reduced-motion:reduce){
   .askWaiting span{animation:none;opacity:.5}
 }
+
+/* ---------- chairman vote tally ---------- */
+.evidenceSub{
+  margin:18px 0 8px; font-family:var(--mono); font-size:10px; letter-spacing:.12em;
+  text-transform:uppercase; color:#5A6478; font-weight:500;
+}
+.deskEvidence > .evidenceSub:first-of-type{margin-top:0}
+
+.voteTally{list-style:none; margin:0; padding:0}
+.voteTally li{
+  display:grid; grid-template-columns:1fr auto 46px; align-items:center; gap:10px;
+  padding:9px 2px; border-bottom:1px solid var(--line); font-size:12.5px;
+}
+.voteTally li:last-child{border-bottom:0}
+.voteWho{color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.voteCall{font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase}
+.voteConf{text-align:right; color:#5A6478; font-variant-numeric:tabular-nums}
+.vote-buy,.vote-buy_partial{color:var(--up)}
+.vote-avoid{color:var(--warn)}
+.vote-hold{color:#8A97AA}
