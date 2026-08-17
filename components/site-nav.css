@@ -12,9 +12,34 @@
 .siteNavBrand{text-decoration:none;flex:0 0 auto}
 .siteNavMark{font-size:13px;font-weight:800;letter-spacing:.16em;color:#E9EFF7}
 
-.siteNavLinks{display:flex;align-items:center;gap:4px;flex:1;min-width:0;
-  overflow-x:auto;scrollbar-width:none}
-.siteNavLinks::-webkit-scrollbar{display:none}
+/* Wide screens only. Below 900px seven items cannot be laid out across a phone
+   without truncating, and a horizontally scrollable strip of text gives no sign
+   that it scrolls - which is exactly how four destinations went missing. */
+.siteNavLinks{display:flex;align-items:center;gap:4px;flex:1;min-width:0}
+
+.siteNavToggle{display:none;align-items:center;justify-content:center;width:40px;height:40px;
+  border:1px solid #1b3350;border-radius:9px;background:none;cursor:pointer;padding:0;flex:0 0 auto}
+.siteNavToggle:hover{border-color:#4DA3FF}
+.siteNavToggle:focus-visible{outline:2px solid #4DA3FF;outline-offset:2px}
+
+.siteNavBurger{display:flex;flex-direction:column;justify-content:center;gap:4px;width:17px}
+.siteNavBurger i{display:block;height:1.5px;background:#E9EFF7;border-radius:1px;
+  transition:transform .16s ease,opacity .16s ease}
+.siteNavBurger.open i:nth-child(1){transform:translateY(5.5px) rotate(45deg)}
+.siteNavBurger.open i:nth-child(2){opacity:0}
+.siteNavBurger.open i:nth-child(3){transform:translateY(-5.5px) rotate(-45deg)}
+
+.siteNavPanel{border-top:1px solid rgba(27,51,80,.7);background:rgba(6,10,17,.98);
+  backdrop-filter:blur(10px)}
+.siteNavPanel nav{display:flex;flex-direction:column;max-width:1180px;margin:0 auto;
+  padding:6px 14px 12px}
+.siteNavPanelLink{display:flex;align-items:center;min-height:48px;padding:0 10px;
+  border-radius:9px;font-size:15px;color:#8A97AA;text-decoration:none}
+.siteNavPanelLink:hover{color:#E9EFF7}
+.siteNavPanelLink.on{color:#E9EFF7;background:rgba(77,163,255,.12)}
+.siteNavPanelLink:focus-visible{outline:2px solid #4DA3FF;outline-offset:-2px}
+.siteNavPanelAccount{margin-top:6px;padding-top:12px;border-top:1px solid rgba(27,51,80,.7);
+  border-radius:0;font-size:13.5px;color:#8fb8e8}
 
 .siteNavLink{padding:8px 11px;border-radius:8px;font-size:13px;color:#8A97AA;text-decoration:none;
   white-space:nowrap;min-height:36px;display:inline-flex;align-items:center;gap:6px}
@@ -36,11 +61,18 @@
 .siteNavAccount:hover{border-color:#4DA3FF}
 .siteNavAccount.on{border-color:#4DA3FF}
 
+@media (max-width:900px){
+  .siteNavLinks{display:none}
+  .siteNavToggle{display:inline-flex}
+}
+
 @media (max-width:620px){
   .siteNavInner{gap:10px;padding:0 14px}
-  .siteNavLink{padding:8px 9px;font-size:12.5px}
-  .siteNavSoon em{display:none}
-  .siteNavAccount{max-width:96px;padding:7px 10px}
+  .siteNavAccount{max-width:110px;padding:7px 10px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .siteNavBurger i{transition:none}
 }
 
 /* The allowance badge moved into the header from the landing page, where it only
