@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import "./portfolio.css";
+import { MarketPhase } from "./market-phase";
 
 /**
  * A portfolio the client keeps themselves.
@@ -139,7 +140,7 @@ export function Portfolio() {
   return (
     <main className="pf">
       <header className="pfHead">
-        <h1>Your portfolio</h1>
+        <h1>Your portfolio <MarketPhase compact /></h1>
         <p className="pfLede">
           What you actually hold, in percentages. Add a weight if you want it, or leave it blank and
           keep this as a list. Nothing here is shared with the committee unless you start a session.

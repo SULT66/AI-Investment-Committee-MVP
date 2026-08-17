@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import "./dashboard.css";
+import { MarketPhase } from "./market-phase";
 
 /**
  * The first thing a returning client sees.
@@ -181,6 +182,7 @@ export function Dashboard() {
           </ul>
 
           <p className="dashNote">
+            <MarketPhase />{" "}
             Prices are shown against the day the committee met, not as a live feed. Nothing here
             updates while you watch it.
           </p>

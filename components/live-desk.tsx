@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AllocationPlan, type AllocationLine } from "./allocation-plan";
+import { MarketPhase } from "./market-phase";
 
 /**
  * AIC Live Investment Desk.
@@ -326,6 +327,9 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
           <em className={(md?.changePercent ?? 0) >= 0 ? "up" : "down"}>
             {md ? `${md.changePercent >= 0 ? "+" : ""}${fmt(md.changePercent)}%` : ""}
           </em>
+          {/* Says whether that figure is a live quote or the last close. Without
+              it, a price read at midnight looks identical to one read at noon. */}
+          {md && <MarketPhase symbol={snapshot?.ticker} compact />}
         </div>
       </header>
 
