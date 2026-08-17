@@ -1,0 +1,37 @@
+/* Market phase pill.
+   The palette marks the phase of the exchange, never the direction of a price -
+   green here means "open", and it sits beside falling prices as readily as
+   rising ones. */
+
+.mktPhase{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;
+  font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;
+  border:1px solid currentColor;line-height:1.5}
+.mktPhase i{width:5px;height:5px;border-radius:50%;background:currentColor;flex:0 0 5px}
+.mktPhase.compact{padding:2px 7px;font-size:9.5px}
+
+/* Regular trading: the only phase where a quote is actually live. */
+.phase-open{color:#4FB477}
+
+/* Extended hours - thin volume, wide spreads. Worth flagging, not alarming. */
+.phase-pre,.phase-post{color:#D9A648}
+
+/* Nothing is trading. The figure on screen is the last close. */
+.phase-closed{color:#7A8699}
+.phase-holiday{color:#8FA0B8}
+
+/* Honest about not knowing, rather than guessing at a phase. */
+.phase-unknown{color:#5A6478}
+
+/* Placements. */
+.deskPrice .mktPhase{margin-top:4px}
+.dashNote .mktPhase{margin-right:4px;vertical-align:middle}
+.pfHead h1 .mktPhase{margin-left:10px;vertical-align:middle}
+
+/* A ticker coloured by its exchange phase.
+   Softer than the pill: a column of these should read as a list, not a warning
+   panel. Same hues, so the pill on the page explains what the colours mean. */
+.sym-open{color:#8FD9AE}
+.sym-pre,.sym-post{color:#E8C88A}
+.sym-closed{color:#9AA7BA}
+.sym-holiday{color:#AEBDD1}
+.sym-unknown{color:#8A97AA}

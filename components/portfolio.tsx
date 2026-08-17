@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import "./portfolio.css";
+import { MarketPhase, PhasedSymbol, useMarketPhases } from "./market-phase";
 
 /**
  * A portfolio the client keeps themselves.
@@ -32,6 +33,7 @@ export function Portfolio() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const weightTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const phases = useMarketPhases((holdings ?? []).map((h) => h.symbol));
 
   const load = useCallback(async () => {
     try {
@@ -139,7 +141,7 @@ export function Portfolio() {
   return (
     <main className="pf">
       <header className="pfHead">
-        <h1>Your portfolio</h1>
+        <h1>Your portfolio <MarketPhase compact /></h1>
         <p className="pfLede">
           What you actually hold, in percentages. Add a weight if you want it, or leave it blank and
           keep this as a list. Nothing here is shared with the committee unless you start a session.
@@ -186,7 +188,7 @@ export function Portfolio() {
           <ul className="pfList">
             {holdings.map((h) => (
               <li key={h.symbol} className="pfRow">
-                <span className="pfSymbol">{h.symbol}</span>
+                <PhasedSymbol className="pfSymbol" symbol={h.symbol} session={phases[h.symbol]} />
 
                 <span className="pfWeight">
                   <input
