@@ -10,8 +10,39 @@ export const dynamic = "force-dynamic";
  * Cached server-side and shared, so a page with eight tickers on it still costs
  * one upstream call - and eight visitors cost the same one.
  */
+const CONTINUOUS = {
+  exchange: "24H", phase: "open" as const, label: "Trades continuously",
+  live: true, holiday: null
+};
+
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
+
+  /* A list, so a page of holdings costs one request rather than one per row.
+     Exchanges are resolved here because the mapping lives on the server - a
+     second copy in the browser would be free to drift from it. */
+  const many = params.get("symbols");
+  if (many) {
+    const symbols = many
+      .split(",")
+      .map((sym) => sym.trim().toUpperCase())
+      .filter(Boolean)
+      .slice(0, 30);
+
+    const sessions: Record<string, unknown> = {};
+    await Promise.all(
+      symbols.map(async (sym) => {
+        const ex = exchangeForSymbol(sym);
+        sessions[sym] =
+          ex === null
+            ? { ...CONTINUOUS, asOf: new Date().toISOString() }
+            : await getMarketSession(ex);
+      })
+    );
+
+    return NextResponse.json({ sessions }, { headers: { "Cache-Control": "no-store" } });
+  }
+
   const symbol = params.get("symbol");
   const exchange = symbol ? exchangeForSymbol(symbol) : (params.get("exchange") ?? "US");
 

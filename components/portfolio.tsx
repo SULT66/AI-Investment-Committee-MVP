@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import "./portfolio.css";
-import { MarketPhase } from "./market-phase";
+import { MarketPhase, PhasedSymbol, useMarketPhases } from "./market-phase";
 
 /**
  * A portfolio the client keeps themselves.
@@ -33,6 +33,7 @@ export function Portfolio() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const weightTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const phases = useMarketPhases((holdings ?? []).map((h) => h.symbol));
 
   const load = useCallback(async () => {
     try {
@@ -187,7 +188,7 @@ export function Portfolio() {
           <ul className="pfList">
             {holdings.map((h) => (
               <li key={h.symbol} className="pfRow">
-                <span className="pfSymbol">{h.symbol}</span>
+                <PhasedSymbol className="pfSymbol" symbol={h.symbol} session={phases[h.symbol]} />
 
                 <span className="pfWeight">
                   <input

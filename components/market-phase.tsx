@@ -60,3 +60,54 @@ export function MarketPhase({ symbol, compact = false }: { symbol?: string; comp
     </span>
   );
 }
+
+/**
+ * Phases for a list of symbols, in one request.
+ *
+ * Resolving each row separately would be a dozen fetches for a page that needs
+ * one, and the exchange mapping only exists on the server - asking the browser
+ * to work out that BP.L is London would be a second copy of that logic, free to
+ * drift from the first.
+ */
+export function useMarketPhases(symbols: string[]) {
+  const [sessions, setSessions] = useState<Record<string, Session>>({});
+  const key = symbols.join(",");
+
+  useEffect(() => {
+    if (!key) return;
+    fetch(`/api/v1/market-session?symbols=${encodeURIComponent(key)}`, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((body: { sessions: Record<string, Session> }) => setSessions(body.sessions ?? {}))
+      .catch(() => setSessions({}));
+  }, [key]);
+
+  return sessions;
+}
+
+/**
+ * A ticker, coloured by what its exchange is doing.
+ *
+ * Safe to colour because a symbol has no direction: unlike a price, there is no
+ * "up" for green to be mistaken for. The phase pill stays on the page as the
+ * legend - colour alone carries nothing to somebody who cannot see it - and the
+ * title repeats it for anyone hovering.
+ */
+export function PhasedSymbol({
+  symbol,
+  session,
+  className = ""
+}: {
+  symbol: string;
+  session?: Session | null;
+  className?: string;
+}) {
+  const phase = session?.phase ?? "unknown";
+  return (
+    <span
+      className={`${className} symPhase sym-${phase}`.trim()}
+      title={session ? `${symbol} - ${session.holiday ?? session.label}` : symbol}
+    >
+      {symbol}
+    </span>
+  );
+}

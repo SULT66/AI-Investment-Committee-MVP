@@ -26,3 +26,12 @@
 .deskPrice .mktPhase{margin-top:4px}
 .dashNote .mktPhase{margin-right:4px;vertical-align:middle}
 .pfHead h1 .mktPhase{margin-left:10px;vertical-align:middle}
+
+/* A ticker coloured by its exchange phase.
+   Softer than the pill: a column of these should read as a list, not a warning
+   panel. Same hues, so the pill on the page explains what the colours mean. */
+.sym-open{color:#8FD9AE}
+.sym-pre,.sym-post{color:#E8C88A}
+.sym-closed{color:#9AA7BA}
+.sym-holiday{color:#AEBDD1}
+.sym-unknown{color:#8A97AA}

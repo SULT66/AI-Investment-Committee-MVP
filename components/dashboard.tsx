@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import "./dashboard.css";
-import { MarketPhase } from "./market-phase";
+import { MarketPhase, PhasedSymbol, useMarketPhases } from "./market-phase";
 
 /**
  * The first thing a returning client sees.
@@ -54,6 +54,9 @@ const ago = (iso: string) => {
 export function Dashboard() {
   const [data, setData] = useState<Data | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  /* One request for every ticker on the page; the server resolves each one's
+     exchange, so a London holding is not coloured by New York's hours. */
+  const phases = useMarketPhases((data?.watched ?? []).map((w) => w.symbol));
 
   /*
    * A ticker in the URL belongs to the analyze wizard, which asks the questions
@@ -130,7 +133,11 @@ export function Dashboard() {
                     onClick={() => setOpen(open === w.sessionId ? null : w.sessionId)}
                     aria-expanded={open === w.sessionId}
                   >
-                    <span className="dashSymbol">{w.symbol}</span>
+                    <PhasedSymbol
+                      className="dashSymbol"
+                      symbol={w.symbol}
+                      session={phases[w.symbol]}
+                    />
                     <span className="dashVerdict">
                       {w.decision ?? "no decision"}
                       {w.confidence !== null && <em> · {Math.round(w.confidence * 100)}%</em>}

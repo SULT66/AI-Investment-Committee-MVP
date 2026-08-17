@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AllocationPlan, type AllocationLine } from "./allocation-plan";
-import { MarketPhase } from "./market-phase";
+import { MarketPhase, PhasedSymbol, useMarketPhases } from "./market-phase";
 
 /**
  * AIC Live Investment Desk.
@@ -106,6 +106,12 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
      server, so amounts beside the percentages are read back from here. Absent,
      the plan shows percentages only. */
   const [buildBalance, setBuildBalance] = useState<number | null>(null);
+  /* One instrument on this page. Build and Review put a label in this field
+     rather than a ticker - "PORTFOLIO PLAN", "PORTFOLIO - 5 HOLDINGS" - and a
+     label has no exchange to be open or shut, so it is left uncoloured. */
+  const headerSymbol =
+    snapshot?.ticker && /^[A-Z0-9.\-:]{1,16}$/.test(snapshot.ticker) ? snapshot.ticker : "";
+  const headerPhase = useMarketPhases(headerSymbol ? [headerSymbol] : []);
 
   useEffect(() => {
     try {
@@ -319,7 +325,11 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
         </span>
         <div className="deskAsset">
           <small>Reviewing</small>
-          <b>{snapshot?.ticker ?? "—"}</b>
+          <b>
+            {snapshot?.ticker
+              ? <PhasedSymbol symbol={snapshot.ticker} session={headerPhase[snapshot.ticker]} />
+              : "—"}
+          </b>
           <span>{md?.name ?? ""}</span>
         </div>
         <div className="deskPrice">
