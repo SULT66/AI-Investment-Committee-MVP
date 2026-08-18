@@ -10,6 +10,8 @@ import {
   buildPolicy, checkDataSufficiency, explainConfidence, runPolicyChecks, sizePosition,
   type InvestorProfile
 } from "./investment-policy";
+import { callAgentModel, distinctModels } from "./model-router";
+import { fundamentalsBlock, getFundamentals } from "./fundamentals";
 
 /**
  * Committee orchestrator.
@@ -165,59 +167,22 @@ function newsBlock(news: NewsItem[]) {
 /** Token usage from the most recent model call, read immediately after it returns. */
 let lastUsage: { inputTokens: number; outputTokens: number } = { inputTokens: 0, outputTokens: 0 };
 
+/**
+ * Every seat's call goes through the router, so a seat can be moved to another
+ * model - or another vendor - by an environment variable. With none set this
+ * behaves exactly as the previous inline OpenAI call did.
+ */
 async function callModel(
   prompt: string,
   schema: unknown,
   schemaName: string,
   webSearch: boolean,
-  timeoutMs: number
+  timeoutMs: number,
+  agentKey = "default"
 ): Promise<Record<string, unknown>> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
-
-  const body: Record<string, unknown> = {
-    model: process.env.COMMITTEE_MODEL ?? "gpt-5-mini",
-    input: prompt,
-    text: { format: { type: "json_schema", name: schemaName, strict: true, schema } }
-  };
-  if (webSearch && process.env.COMMITTEE_WEB_SEARCH !== "0") {
-    body.tools = [{ type: "web_search", search_context_size: "low" }];
-  }
-
-  const providerStarted = Date.now();
-  const res = await fetchWithTimeout(
-    "https://api.openai.com/v1/responses",
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    },
-    timeoutMs,
-    `Agent ${schemaName}`
-  );
-
-  if (!res.ok) {
-    void record({ kind: "provider.failed", provider: "openai", code: `HTTP_${res.status}`,
-      durationMs: Date.now() - providerStarted });
-    throw new Error(`${schemaName} upstream ${res.status}`);
-  }
-  void record({ kind: "provider.call", provider: "openai", durationMs: Date.now() - providerStarted });
-
-  const data = (await res.json()) as {
-    output_text?: string;
-    output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
-    usage?: { input_tokens?: number; output_tokens?: number };
-  };
-  const text =
-    data.output_text ??
-    data.output?.flatMap((i) => i.content ?? []).find((p) => p.type === "output_text")?.text;
-  if (!text) throw new Error(`${schemaName} returned no text`);
-
-  lastUsage = {
-    inputTokens: data.usage?.input_tokens ?? 0,
-    outputTokens: data.usage?.output_tokens ?? 0
-  };
-  return JSON.parse(text) as Record<string, unknown>;
+  const result = await callAgentModel({ prompt, schema, schemaName, webSearch, timeoutMs, agentKey });
+  lastUsage = { inputTokens: result.inputTokens, outputTokens: result.outputTokens };
+  return result.parsed;
 }
 
 export async function runCommitteeJob(
@@ -249,7 +214,13 @@ export async function runCommitteeJob(
     await updateSession(sessionId, { status: "RESEARCHING" });
     await emit(sessionId, "session.research.progress", { stage: "market_data" });
 
-    const market = await getMarketSnapshot(input.ticker).catch(() => null);
+    const [market, fundamentals] = await Promise.all([
+      getMarketSnapshot(input.ticker).catch(() => null),
+      /* Turns itself on the day the paid data plan starts. Until then it reports
+         "not available" and the prompt says so, rather than leaving a silence a
+         model would fill. */
+      getFundamentals(input.ticker)
+    ]);
     if (!market) {
       await updateSession(sessionId, {
         status: "FAILED",
@@ -334,7 +305,7 @@ number or dated event. Keep each risk to one short line — this is a spoken com
 itself: no parenthetical notes to yourself, no filler, no meta-commentary about formatting.
 Write every string in ${languageName}. confidence is 0 to 1.`.trim();
 
-    const context = `MARKET DATA:\n${marketBlock(market)}\n\nRECENT NEWS:\n${newsBlock(news)}\n
+    const context = `MARKET DATA:\n${marketBlock(market)}\n\n${fundamentalsBlock(fundamentals)}\n\nRECENT NEWS:\n${newsBlock(news)}\n
 PROPOSAL: reviewing ${market.symbol}, position under consideration ${(
       (input.amount / input.portfolioValue) * 100
     ).toFixed(2)}% of portfolio, sector exposure ${input.currentSectorExposure !== undefined ? input.currentSectorExposure + "%" : "not supplied by the client"}, risk ${
@@ -361,7 +332,8 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
             opinionSchema,
             `opinion_${agent.key}`,
             agent.webSearch,
-            agentTimeout
+            agentTimeout,
+            agent.key
           );
           void record({
             kind: "agent.completed", sessionId, agentKey: agent.key,
@@ -495,7 +467,11 @@ ${sufficiency.sufficient ? "" : `\nDATA GAPS:\n${sufficiency.gaps.join("\n")}\nI
       dataSufficiency: sufficiency,
       policyChecks: checks,
       horizonYears: input.horizonYears,
-      newsCount: news.length
+      newsCount: news.length,
+      /* Agreement between voices that share a model is not corroboration, and a
+         committee that never saw the financials should not sound certain. */
+      distinctModels: distinctModels([...opinions.map((o) => o.agent.key), CHAIR.key]),
+      fundamentalsAvailable: fundamentals.available
     });
 
     const decisionLabel = sufficiency.sufficient ? String(chairRaw.decision) : "defer";

@@ -291,15 +291,53 @@ export function explainConfidence(args: {
   policyChecks: PolicyCheck[];
   horizonYears: number;
   newsCount: number;
+  /** how many distinct models produced the opinions; defaults to 1 */
+  distinctModels?: number;
+  /** whether company financials were actually available to the committee */
+  fundamentalsAvailable?: boolean;
 }): ConfidenceBreakdown {
-  const dataQuality = args.dataSufficiency.sufficient ? 1 : Math.max(0, 1 - args.dataSufficiency.gaps.length * 0.25);
+  /*
+   * Agreement between correlated voices is not agreement.
+   *
+   * Seven personas on one model share a training set and a set of blind spots,
+   * so they are wrong together. Six of seven agreeing was being scored as strong
+   * corroboration when it is one model repeating itself. The discount is removed
+   * as genuinely different models join the committee - see lib/model-router.ts.
+   */
+  const models = Math.max(1, args.distinctModels ?? 1);
+  const independence = models === 1 ? 0.65 : Math.min(1, 0.65 + 0.35 * ((models - 1) / 2));
+  const agreement = args.agreementRatio * independence;
+
+  /* Financials were the largest hole in the picture: without them the fundamental
+     seat is reasoning from a price and two ratios. */
+  const fundamentalsPenalty = args.fundamentalsAvailable === false ? 0.3 : 0;
+  const dataQuality = Math.max(
+    0,
+    (args.dataSufficiency.sufficient ? 1 : Math.max(0, 1 - args.dataSufficiency.gaps.length * 0.25)) -
+      fundamentalsPenalty
+  );
   const policyFit = args.policyChecks.filter((c) => c.passed).length / Math.max(args.policyChecks.length, 1);
   const horizonFit = Math.min(1, args.horizonYears / 5);
   const evidence = Math.min(1, args.newsCount / 5);
 
   const components = [
-    { label: "Committee agreement", weight: 0.35, raw: args.agreementRatio, note: "Share of members supporting the decision" },
-    { label: "Data completeness", weight: 0.3, raw: dataQuality, note: args.dataSufficiency.gaps.join(" ") || "All required inputs present" },
+    {
+      label: "Committee agreement",
+      weight: 0.35,
+      raw: agreement,
+      note:
+        models === 1
+          ? "Share of members supporting the decision, discounted because every seat runs on one model"
+          : `Share of members supporting the decision, across ${models} distinct models`
+    },
+    {
+      label: "Data completeness",
+      weight: 0.3,
+      raw: dataQuality,
+      note:
+        (args.dataSufficiency.gaps.join(" ") || "All required inputs present") +
+        (args.fundamentalsAvailable === false ? " Company financials were not available." : "")
+    },
     { label: "Policy fit", weight: 0.2, raw: policyFit, note: "Share of client policy checks passed" },
     { label: "Horizon fit", weight: 0.1, raw: horizonFit, note: "Client horizon against a 5-year equity baseline" },
     { label: "Evidence breadth", weight: 0.05, raw: evidence, note: "Recent news items considered" }
