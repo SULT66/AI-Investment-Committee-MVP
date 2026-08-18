@@ -48,6 +48,26 @@ const LANGUAGE_NAMES: Record<string, string> = {
  */
 const BENCHMARK = process.env.AIC_BUILD_BENCHMARK ?? "SPY";
 
+/*
+ * Web search is off here, unlike a single-instrument review.
+ *
+ * The two seats that use it were the slowest in the measured session by a wide
+ * margin, and how a portfolio splits across asset classes turns on the client's
+ * horizon and appetite rather than this morning's headlines. Set
+ * AIC_BUILD_WEB_SEARCH=1 to put it back.
+ */
+const webSearchForBuild = process.env.AIC_BUILD_WEB_SEARCH === "1";
+
+/*
+ * What a specialist returns.
+ *
+ * Deliberately smaller than the chairman's. A specialist is an input to the
+ * synthesis, not the plan the client reads, so it gives weights and a thesis and
+ * stops there - no candidate instruments, no per-sleeve essay. Output tokens are
+ * 92% of what a session costs and most of what it takes in time, and six agents
+ * each writing seven rationales and twenty-eight tickers is the difference
+ * between a session that takes a minute and one that takes several.
+ */
 const allocationSchema = {
   type: "object",
   additionalProperties: false,
@@ -55,20 +75,18 @@ const allocationSchema = {
     confidence: { type: "number" },
     thesis: { type: "string" },
     allocation: {
-      type: "array", minItems: 2, maxItems: 7,
+      type: "array", minItems: 2, maxItems: 5,
       items: {
         type: "object",
         additionalProperties: false,
         properties: {
           sleeve: { type: "string", enum: [...SLEEVE_KEYS] },
-          percent: { type: "number" },
-          rationale: { type: "string" },
-          candidates: { type: "array", minItems: 0, maxItems: 4, items: { type: "string" } }
+          percent: { type: "number" }
         },
-        required: ["sleeve", "percent", "rationale", "candidates"]
+        required: ["sleeve", "percent"]
       }
     },
-    risks: { type: "array", minItems: 1, maxItems: 3, items: { type: "string" } }
+    risks: { type: "array", minItems: 1, maxItems: 2, items: { type: "string" } }
   },
   required: ["confidence", "thesis", "allocation", "risks"]
 } as const;
@@ -110,6 +128,12 @@ const chairAllocationSchema = {
   },
   required: ["thesis", "summary", "allocation", "reasons", "risks", "dissent", "reviewTriggers"]
 } as const;
+
+/* The analyse methods do not apply here - the question is a portfolio, not an
+   instrument - but the rule that stops a model inventing its own inputs does. */
+const MISSING_INPUT_RULE =
+  "If a figure you need was not supplied above, say which figure was missing and reason without it. " +
+  "Do not estimate it and do not substitute a similar one.";
 
 const FILLER =
   /\((?:sorry|ignore|final|done|ok|stop|end|error|fixed|remove|replace|clean|actual|now real|complete|compressed|apologies|this is a mistake|the assistant[^)]*|[^)]{0,40}(?:glitch|corrupted|deliverable|one line|short|extras?)[^)]*)\)/gi;
@@ -294,10 +318,8 @@ Your percentages are a proposal. They will be checked against the client's own c
 adjusted arithmetically if they breach them, so argue for the shape you believe in and let the
 policy engine do the enforcing. Weights should total roughly 100.
 
-For each sleeve give a one-line rationale, and where useful name up to four widely held, liquid
-instruments as candidates for that sleeve - tickers only, as starting points for the client's own
-research. Never claim a candidate's price, yield or past return unless it is in the data given to
-you. If you are not confident a ticker exists and is liquid, leave the list empty.
+Give the weights and your thesis, and stop there. Keep it short: the chairman writes the plan the
+client reads, so a long argument here only slows the meeting down.
 
 ${scaleGuidance(input.amount)}
 
@@ -330,8 +352,8 @@ ${market ? marketBlock(market) : "Live market data was unavailable; reason from 
         const started = Date.now();
         try {
           const raw = await callModel(
-            `${agent.persona}\n\n${rules}\n\n${context}\n\nPropose how this portfolio should be divided.`,
-            allocationSchema, `allocation_${agent.key}`, agent.webSearch, agentTimeout
+            `${agent.persona}\n\n${MISSING_INPUT_RULE}\n\n${rules}\n\n${context}\n\nPropose how this portfolio should be divided.`,
+            allocationSchema, `allocation_${agent.key}`, webSearchForBuild && agent.webSearch, agentTimeout
           );
           void record({
             kind: "agent.completed", sessionId, agentKey: agent.key, durationMs: Date.now() - started,
@@ -341,16 +363,14 @@ ${market ? marketBlock(market) : "Live market data was unavailable; reason from 
           const allocation = Array.isArray(raw.allocation)
             ? (raw.allocation as Array<Record<string, unknown>>).map((a) => ({
                 sleeve: String(a.sleeve),
-                percent: clamp(a.percent, 0, 100),
-                rationale: cleanLine(a.rationale, 200),
-                candidates: Array.isArray(a.candidates) ? a.candidates.map(String) : []
+                percent: clamp(a.percent, 0, 100)
               }))
             : [];
 
           const opinion = {
             thesis: cleanLine(raw.thesis, 400),
             confidence: clamp(raw.confidence, 0, 1),
-            risks: cleanList(raw.risks),
+            risks: cleanList(raw.risks, 2),
             allocation
           };
 
@@ -417,6 +437,11 @@ ${market ? marketBlock(market) : "Live market data was unavailable; reason from 
     const chairStarted = Date.now();
     const chairRaw = await callModel(
       `${CHAIR.persona}
+
+For each sleeve in your plan give a one-line rationale, and where useful name up to four widely
+held, liquid instruments as candidates - tickers only, as starting points for the client's own
+research. Never claim a candidate's price, yield or past return: you have not been given any. If
+you are not confident a ticker exists and is liquid, leave the list empty.
 
 Weigh the arguments rather than averaging the numbers: a well-argued minority case can outweigh a
 weak majority, and the Risk Agent's constraints are binding. Produce ONE allocation the committee

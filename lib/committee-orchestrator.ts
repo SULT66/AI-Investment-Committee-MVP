@@ -313,6 +313,18 @@ PROPOSAL: reviewing ${market.symbol}, position under consideration ${(
     }, horizon ${input.horizonYears}y.
 POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxSectorPercent}%, permitted max ${sizing.maxPositionPercent}% (binding: ${sizing.bindingConstraint}).`;
 
+    /*
+     * A method is only as safe as its inputs. Told to compute cash conversion
+     * without a cash flow figure, a model will produce one - which is the exact
+     * failure the positioning document forbids. So every seat is told, once,
+     * what to do when a step cannot be taken.
+     */
+    const methodCaveat =
+      `If a figure your method needs was not supplied above, say which figure was missing and skip ` +
+      `that step. Do not estimate it, do not substitute a similar one, and do not carry on as if you ` +
+      `had it. A skipped step with a reason is worth more to the committee than a computed one built ` +
+      `on a number you invented.`;
+
     await updateSession(sessionId, { status: "LIVE" });
 
     // Specialists run concurrently; each is announced and reported as it lands.
@@ -328,7 +340,7 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
         const agentStarted = Date.now();
         try {
           const raw = await callModel(
-            `${agent.persona}\n\n${rules}\n\n${context}\n\nGive your vote on this proposal.`,
+            `${agent.persona}\n\n${agent.method}\n\n${methodCaveat}\n\n${rules}\n\n${context}\n\nGive your vote on this proposal.`,
             opinionSchema,
             `opinion_${agent.key}`,
             agent.webSearch,
@@ -435,7 +447,7 @@ POLICY: max single ${policy.maxSinglePositionPercent}%, max sector ${policy.maxS
 
     const chairStarted = Date.now();
     const chairRaw = await callModel(
-      `${CHAIR.persona}
+      `${CHAIR.persona}\n\n${CHAIR.method}
 
 Weigh the arguments rather than averaging them: a well-argued minority objection can outweigh a weak
 majority, and the Risk Agent's size limit is binding. reasons are the THREE strongest arguments for

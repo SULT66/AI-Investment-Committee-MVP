@@ -89,6 +89,12 @@ const chairReviewSchema = {
   required: ["thesis", "summary", "verdict", "reasons", "risks", "dissent", "reviewTriggers"]
 } as const;
 
+/* The analyse methods do not apply here - the question is a portfolio, not an
+   instrument - but the rule that stops a model inventing its own inputs does. */
+const MISSING_INPUT_RULE =
+  "If a figure you need was not supplied above, say which figure was missing and reason without it. " +
+  "Do not estimate it and do not substitute a similar one.";
+
 const FILLER =
   /\((?:sorry|ignore|final|done|ok|stop|end|error|fixed|remove|replace|clean|actual|now real|complete|compressed|apologies|this is a mistake|the assistant[^)]*|[^)]{0,40}(?:glitch|corrupted|deliverable|one line|short|extras?)[^)]*)\)/gi;
 
@@ -304,7 +310,7 @@ ${resolved < priced.length ? `Market data was unavailable for ${priced.length - 
         const started = Date.now();
         try {
           const raw = await callModel(
-            `${agent.persona}\n\n${rules}\n\n${context}\n\nWhat does this portfolio look like from where you sit?`,
+            `${agent.persona}\n\n${MISSING_INPUT_RULE}\n\n${rules}\n\n${context}\n\nWhat does this portfolio look like from where you sit?`,
             findingSchema, `review_${agent.key}`, agent.webSearch, agentTimeout
           );
           void record({
