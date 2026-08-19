@@ -145,9 +145,19 @@ export function buildReport(snapshot: SessionSnapshot, version: number): Committ
       quoteTime: (md?.quoteTime as string | null) ?? null,
       webSearch: process.env.COMMITTEE_WEB_SEARCH !== "0"
     },
+    /* A Build or Review session has no instrument. Falling back to the session
+       label keeps the report honest about what it is a report on, instead of
+       borrowing the identity of whichever holding happened to be fetched first. */
     asset: {
       symbol: String(md?.symbol ?? snapshot.ticker),
-      name: String(md?.name ?? snapshot.ticker),
+      name: String(
+        md?.name ??
+          (snapshot.reviewSubject
+            ? `Portfolio review — ${snapshot.reviewSubject.holdings.length} holdings`
+            : snapshot.allocation
+              ? "Portfolio plan"
+              : snapshot.ticker)
+      ),
       exchange: String(md?.exchange ?? ""),
       industry: String(md?.industry ?? ""),
       currency: String(md?.currency ?? "USD")

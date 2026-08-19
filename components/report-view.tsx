@@ -114,13 +114,20 @@ export function ReportView({ sessionId }: { sessionId: string }) {
 
   const md = report.marketSnapshot;
   const d = report.decision;
+  /* Build and Review put a label in the symbol field. A label has no exchange
+     and cannot be held, so anything keyed to a real instrument is hidden. */
+  const isInstrument = /^[A-Z0-9.\-:]{1,16}$/.test(report.asset.symbol ?? "");
 
   return (
     <main className="report">
       <header className="reportHead">
         <div>
           <p className="reportKicker"><a href="/">AIC</a> &middot; Committee report</p>
-          <h1>{report.asset.name} · {report.asset.symbol}</h1>
+          <h1>
+            {isInstrument
+              ? `${report.asset.name} · ${report.asset.symbol}`
+              : report.asset.name}
+          </h1>
           <p className="reportMeta">
             {report.asset.exchange}{report.asset.industry ? ` · ${report.asset.industry}` : ""} ·
             Version {report.reportVersion} · Generated {new Date(report.generatedAt).toLocaleString()}
@@ -133,8 +140,10 @@ export function ReportView({ sessionId }: { sessionId: string }) {
         </div>
       </header>
 
-      {/* A plan has no single instrument to add, so this only appears on a review. */}
-      {!report.allocation && report.asset.symbol && (
+      {/* Only a single-instrument review has something to add. A plan and a
+          portfolio review carry a label here, not a ticker, and offering to add
+          "PORTFOLIO - 16 HOLDINGS" to a portfolio is nonsense. */}
+      {isInstrument && (
         <section className="reportAdd">
           <AddToPortfolio symbol={report.asset.symbol} sessionId={report.sessionId} />
         </section>

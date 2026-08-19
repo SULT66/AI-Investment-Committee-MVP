@@ -225,9 +225,25 @@ export async function runReviewJob(
     const priced = input.holdings.slice(0, MAX_PRICED);
     const unpriced = input.holdings.slice(MAX_PRICED);
 
-    const snapshots = await Promise.all(
-      priced.map(async (h) => ({ holding: h, snapshot: await getMarketSnapshot(h.symbol).catch(() => null) }))
-    );
+    /*
+     * Fetched a few at a time, not all at once.
+     *
+     * Each holding costs two Finnhub calls, so twelve in parallel is a burst of
+     * twenty-four - and the free tier answered eight of them with nothing. The
+     * report said so honestly ("missing market prices for KD, MRK, MSFT...")
+     * which is the right failure, but the data was there to be had.
+     */
+    const snapshots: Array<{ holding: (typeof priced)[number]; snapshot: MarketSnapshot | null }> = [];
+    const LANES = Number(process.env.AIC_REVIEW_FETCH_LANES ?? 3);
+    for (let i = 0; i < priced.length; i += LANES) {
+      const batch = await Promise.all(
+        priced.slice(i, i + LANES).map(async (h) => ({
+          holding: h,
+          snapshot: await getMarketSnapshot(h.symbol).catch(() => null)
+        }))
+      );
+      snapshots.push(...batch);
+    }
 
     const resolved = snapshots.filter((s) => s.snapshot !== null).length;
     const weightsGiven = input.holdings.filter((h) => h.weightPercent !== null).length;
@@ -242,7 +258,11 @@ export async function runReviewJob(
 
     await updateSession(sessionId, {
       status: "READY_TO_PRESENT",
-      marketData: snapshots[0]?.snapshot ?? null,
+      /* Deliberately null. This used to carry the first holding's snapshot, and
+         the report builder takes the asset name from it - so a review of sixteen
+         positions was published as "Ares Capital Corp - ARCC". The subject here
+         is the portfolio; it has no single instrument and should not borrow one. */
+      marketData: null,
       news: [],
       assumedProfileFields: assumed,
       reviewSubject: {
