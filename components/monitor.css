@@ -1,0 +1,85 @@
+/* Monitor. Calm by construction: colour marks whether something needs a look,
+   never whether a price went up. */
+
+.mon{max-width:860px;margin:0 auto;padding:44px 22px 90px;color:#E9EFF7}
+.monHead h1{margin:0 0 8px;font-size:25px;letter-spacing:-.02em}
+.monLede{margin:0 0 6px;font-size:13.5px;color:#8A97AA}
+.monNote{margin:6px 0 0;font-size:12px;line-height:1.6;color:#66748A;max-width:64ch}
+
+.monAdd{display:flex;gap:9px;margin:24px 0 6px}
+.monAdd input{flex:1;background:rgba(255,255,255,.04);border:1px solid #1b3350;color:#E9EFF7;
+  border-radius:9px;padding:12px 14px;font:inherit;font-size:max(1rem,16px)}
+.monAdd input:focus{outline:none;border-color:#4DA3FF}
+.monAdd button{background:none;border:1px solid #1b3350;color:#E9EFF7;padding:12px 20px;
+  border-radius:9px;font:inherit;font-size:13px;cursor:pointer;min-height:46px}
+.monAdd button:hover:not(:disabled){border-color:#4DA3FF}
+.monAdd button:disabled{opacity:.45;cursor:default}
+
+.monSummary{margin:22px 0 6px;font-size:13px;color:#F0D6A4}
+
+.monList{list-style:none;margin:14px 0 0;padding:0}
+.monRow{border-top:1px solid rgba(27,51,80,.7)}
+.monRow:last-child{border-bottom:1px solid rgba(27,51,80,.7)}
+
+.monRowHead{display:grid;grid-template-columns:10px 78px auto 1fr auto;align-items:center;gap:11px;
+  width:100%;padding:14px 4px;background:none;border:0;color:inherit;font:inherit;text-align:left;
+  cursor:pointer;min-height:54px}
+.monRowHead:hover{background:rgba(255,255,255,.02)}
+.monRowHead:focus-visible{outline:2px solid #4DA3FF;outline-offset:-2px}
+
+/* Marks "this wants attention", not "this went up". */
+.monDot{width:7px;height:7px;border-radius:50%;background:#3A4657}
+.level-notable .monDot{background:#D9A648}
+.level-review .monDot{background:#E8927C}
+
+.monSymbol{font-size:14px;font-weight:700;letter-spacing:.02em}
+.monTags{display:flex;gap:5px}
+.monTags em{font-style:normal;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;
+  padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.05);color:#8A97AA}
+.monVerdict{font-size:12.5px;color:#8A97AA;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.monVerdict i{font-style:normal;color:#66748A}
+.monSignalCount{font-size:12px;color:#66748A;white-space:nowrap}
+
+.monDetail{padding:0 4px 18px 4px}
+.monSignals{list-style:none;margin:0 0 16px;padding:0}
+.monSignals li{padding:10px 12px;border-radius:8px;margin-bottom:7px;font-size:12.5px;
+  line-height:1.6;border:1px solid rgba(27,51,80,.8)}
+.monSignals b{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  margin-bottom:4px;color:#8A97AA}
+.sig-notable{background:rgba(217,166,72,.06);border-color:rgba(217,166,72,.3)}
+.sig-review{background:rgba(232,146,124,.06);border-color:rgba(232,146,124,.3)}
+.monQuiet{margin:0 0 16px;font-size:12.5px;color:#8A97AA}
+
+.monTriggers{margin-bottom:16px}
+.monTriggersHead{margin:0 0 7px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:#66748A}
+.monTriggers ul{margin:0;padding-left:18px;font-size:12.5px;line-height:1.65;color:#9AA7BA}
+.monTriggers li{margin-bottom:5px}
+
+.monActions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.monPrimary{background:#4DA3FF;color:#04101F;padding:10px 16px;border-radius:8px;font-size:12.5px;
+  font-weight:600;text-decoration:none}
+.monSecondary{border:1px solid #1b3350;color:#E9EFF7;padding:10px 16px;border-radius:8px;
+  font-size:12.5px;text-decoration:none}
+.monSecondary:hover{border-color:#4DA3FF}
+.monRemove{background:none;border:0;color:#66748A;font:inherit;font-size:12.5px;cursor:pointer;
+  padding:10px 4px}
+.monRemove:hover{color:#E8927C}
+
+.monEmpty{border:1px solid #1b3350;border-radius:12px;padding:30px 22px;text-align:center;
+  margin-top:20px}
+.monEmpty p{margin:0 0 10px;color:#8A97AA;font-size:13.5px}
+.monEmpty .monPrimary{display:inline-block;margin-top:8px}
+.monError{margin:8px 0 0;font-size:12.5px;color:#EF4444}
+.monWarning{margin-top:24px;border:1px solid rgba(245,184,77,.32);background:rgba(245,184,77,.06);
+  padding:12px 15px;border-radius:9px;font-size:12.5px;line-height:1.6;color:#F0D6A4}
+
+@media (max-width:620px){
+  .monRowHead{grid-template-columns:10px 1fr auto;grid-template-areas:"dot sym count" ". verdict verdict";
+    row-gap:4px}
+  .monDot{grid-area:dot}
+  .monSymbol{grid-area:sym}
+  .monSignalCount{grid-area:count}
+  .monVerdict{grid-area:verdict}
+  .monTags{display:none}
+}

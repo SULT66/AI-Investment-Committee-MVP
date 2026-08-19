@@ -4,6 +4,7 @@ import { createAccount, createVerifyToken, issueSessionCookie, sessionCookieHead
 import { VISITOR_COOKIE, adoptVisitorLedger, readVisitorCookie } from "@/lib/entitlements";
 import { adoptReports } from "@/lib/report-index";
 import { adoptPortfolio } from "@/lib/portfolio";
+import { adoptWatchlist } from "@/lib/watchlist";
 import { baseUrl, sendVerifyEmail } from "@/lib/auth-emails";
 import { mailerConfigured } from "@/lib/mailer";
 
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
   await adoptVisitorLedger(result.account.id, visitorId);
   await adoptReports(result.account.id, visitorId);
   await adoptPortfolio(result.account.id, visitorId);
+  await adoptWatchlist(result.account.id, visitorId);
 
   // Confirmation is sent, not enforced. A mail failure must not cost someone the
   // account they just created, so it is logged and the sign-up still succeeds.
