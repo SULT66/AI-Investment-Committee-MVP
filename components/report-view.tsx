@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AllocationPlan, type AllocationLine } from "./allocation-plan";
 import { AddToPortfolio } from "./add-to-portfolio";
+import { AssistantPanel } from "./assistant";
 import "./portfolio.css";
 
 /**
@@ -303,6 +304,17 @@ export function ReportView({ sessionId }: { sessionId: string }) {
           />
         </section>
       )}
+
+      {/* The report is where most people meet a decision - from their history,
+          the dashboard, or an alert email - and until now it was the one place
+          with no way to ask about it. */}
+      <section className="reportAsk">
+        <h2>Ask about this report</h2>
+        <AssistantPanel
+          sessionId={report.sessionId}
+          subject={isInstrument ? report.asset.symbol : report.asset.name}
+        />
+      </section>
 
       {report.news.length > 0 && (
         <section>

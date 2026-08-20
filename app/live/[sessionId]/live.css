@@ -334,3 +334,11 @@
 .vote-buy,.vote-buy_partial{color:var(--up)}
 .vote-avoid{color:var(--warn)}
 .vote-hold{color:#8A97AA}
+
+/* The ask sheet now wraps the shared assistant panel, which brings its own
+   styling, so the sheet only has to position it. */
+.askSheet{padding:0;background:none;border:0;max-height:none}
+.askSheet .asst{border-radius:14px 14px 0 0;max-height:min(78vh,660px)}
+@media(min-width:768px){
+  .askSheet .asst{border-radius:14px}
+}

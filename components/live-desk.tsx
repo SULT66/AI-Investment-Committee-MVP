@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AllocationPlan, type AllocationLine } from "./allocation-plan";
 import { MarketPhase, PhasedSymbol, useMarketPhases } from "./market-phase";
+import { AssistantPanel } from "./assistant";
 
 /**
  * AIC Live Investment Desk.
@@ -654,145 +655,21 @@ function SpeakerPortrait({ agentKey }: { agentKey: string | null }) {
  * Placeholders are inserted up front in seat order, so the thread reads the same
  * way every time regardless of who happens to answer first.
  */
-const ASK_ORDER = [
-  "fundamental", "market", "quant", "risk", "macro", "devils_advocate", "chairman"
-];
-
-type AskTurn = {
-  id: number;
-  role: string;
-  text: string;
-  state: "waiting" | "done" | "quiet" | "failed";
-};
-
+/*
+ * The desk's ask panel is now the shared one.
+ *
+ * It had its own copy - same seven parallel requests, same bubbles - and the
+ * report page had none at all. Two implementations of one conversation is how
+ * they end up disagreeing about what a member is called, so this delegates and
+ * the report gets the same panel with an assistant in front of it.
+ */
 function AskSheet({
   sessionId, ticker, onClose
 }: { sessionId: string; ticker: string; onClose: () => void }) {
-  const [question, setQuestion] = useState("");
-  const [thread, setThread] = useState<AskTurn[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("");
-  const nextId = useRef(0);
-
-  async function send() {
-    const q = question.trim();
-    if (!q || busy) return;
-    setBusy(true);
-    setNotice("");
-    setQuestion("");
-
-    const askId = nextId.current;
-    nextId.current += 1 + ASK_ORDER.length;
-
-    setThread((t) => [
-      ...t,
-      { id: askId, role: "you", text: q, state: "done" },
-      ...ASK_ORDER.map((key, i) => ({
-        id: askId + 1 + i,
-        role: LABELS[key] ?? key,
-        text: "",
-        state: "waiting" as const
-      }))
-    ]);
-
-    const update = (id: number, patch: Partial<AskTurn>) =>
-      setThread((t) => t.map((turn) => (turn.id === id ? { ...turn, ...patch } : turn)));
-
-    await Promise.all(
-      ASK_ORDER.map(async (member, i) => {
-        const id = askId + 1 + i;
-        try {
-          const res = await fetch(`/api/v1/sessions/${sessionId}/questions`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question: q, member })
-          });
-
-          if (res.status === 429) {
-            const body = (await res.json()) as { error?: { message?: string } };
-            setNotice(body.error?.message ?? "Too many questions just now.");
-            update(id, { state: "failed", text: "" });
-            return;
-          }
-          if (!res.ok) {
-            update(id, { state: "failed", text: "" });
-            return;
-          }
-
-          const data = (await res.json()) as {
-            turns?: Array<{ text: string }>; canAnswer?: boolean;
-          };
-          const answer = data.turns?.[0]?.text ?? "";
-
-          // A member with nothing to add says so once, quietly, rather than
-          // padding the thread with an answer they are not placed to give.
-          update(id, {
-            text: answer,
-            state: answer ? (data.canAnswer === false ? "quiet" : "done") : "failed"
-          });
-        } catch {
-          update(id, { state: "failed", text: "" });
-        }
-      })
-    );
-
-    setBusy(false);
-  }
-
-  // Seats that failed outright are dropped once everything has settled; an empty
-  // bubble is worse than no bubble.
-  const visible = thread.filter((t) => t.state !== "failed" || busy);
-
   return (
-    <div className="askWrap" role="dialog" aria-label="Ask the committee">
+    <div className="askWrap" role="dialog" aria-label="Ask about this session">
       <div className="askSheet">
-        <div className="askHead">
-          <b>Ask Committee · {ticker}</b>
-          <button onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        <div className="askThread">
-          {!thread.length && (
-            <p className="askHint">
-              Ask once and every member answers from their own angle. Follow-up questions are
-              free — they do not consume another review.
-            </p>
-          )}
-          {visible.map((m) => (
-            <div
-              key={m.id}
-              className={
-                m.role === "you"
-                  ? "askMine"
-                  : m.state === "quiet"
-                    ? "askTheirs askQuiet"
-                    : "askTheirs"
-              }
-            >
-              <small>{m.role}</small>
-              {m.state === "waiting" ? (
-                <p className="askWaiting" aria-label={`${m.role} is thinking`}>
-                  <span /><span /><span />
-                </p>
-              ) : (
-                <p>{m.text}</p>
-              )}
-            </div>
-          ))}
-          {notice && <p className="askHint">{notice}</p>}
-        </div>
-        <div className="askInput">
-          <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
-            placeholder="Why does the Risk Agent disagree?"
-            maxLength={400}
-            disabled={busy}
-          />
-          <button onClick={() => void send()} disabled={busy || !question.trim()}>
-            {busy ? "Asking…" : "Ask"}
-          </button>
-        </div>
+        <AssistantPanel sessionId={sessionId} subject={ticker} onClose={onClose} />
       </div>
     </div>
   );
