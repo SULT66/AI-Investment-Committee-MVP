@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { MarketPhase, PhasedSymbol, useMarketPhases } from "./market-phase";
 import { decisionLabel, monitorStateLabel } from "@/lib/decision-labels";
-import "./monitor.css";
+import "./dashboard.css";
 
 /**
  * The client's desk: what they decided, and whether it still stands.
@@ -190,6 +190,11 @@ export function Dashboard() {
         <div className="monGrid">
           {data.cards.map((c) => {
             const expanded = open === c.symbol;
+            /* Held or watched but never put to the committee. "No material
+               change" is meaningless here - there is no decision for anything to
+               have changed against - and the card had no action at all, which
+               made it a dead end. */
+            const reviewed = c.sessionId !== null;
             return (
               <article key={c.symbol} className={`monCard level-${c.level}`}>
                 <header className="monCardHead">
@@ -205,14 +210,19 @@ export function Dashboard() {
                   {c.confidence !== null && <i> · {Math.round(c.confidence * 100)}% confidence</i>}
                 </p>
 
-                <p className={`monStatus status-${c.level}`}>
+                <p className={`monStatus ${reviewed ? `status-${c.level}` : "status-unreviewed"}`}>
                   <span className="monStatusDot" aria-hidden="true" />
-                  {monitorStateLabel(c.level).toUpperCase()}
+                  {reviewed ? monitorStateLabel(c.level).toUpperCase() : "NEVER REVIEWED"}
                 </p>
 
-                {c.changePercent !== null && (
+                {reviewed && c.changePercent !== null && (
                   <p className="monMove">
                     {c.changePercent > 0 ? "+" : ""}{c.changePercent.toFixed(1)}% since the review
+                  </p>
+                )}
+                {!reviewed && (
+                  <p className="monMove monMoveQuiet">
+                    Nothing to monitor until the committee has looked at it.
                   </p>
                 )}
 
@@ -239,7 +249,11 @@ export function Dashboard() {
                 )}
 
                 <div className="monCardFoot">
-                  {c.level === "review" ? (
+                  {!reviewed ? (
+                    <Link className="monPrimary" href={`/analyze?ticker=${encodeURIComponent(c.symbol)}`}>
+                      Review this
+                    </Link>
+                  ) : c.level === "review" ? (
                     <Link className="monPrimary" href={`/analyze?ticker=${encodeURIComponent(c.symbol)}`}>
                       Reopen committee
                     </Link>
