@@ -1,0 +1,33 @@
+# Scheduled monitor sweep.
+#
+# Put this at .github/workflows/monitor-sweep.yml by hand - update.ps1 only
+# copies app/ lib/ components/ public/ docs/ and the root config files, so it
+# cannot deliver a workflow.
+#
+# Add AIC_OPS_TOKEN as a repository secret:
+#   GitHub -> Settings -> Secrets and variables -> Actions -> New repository secret
+#
+# GitHub Actions is used rather than an Azure timer because it is free, it is
+# already running your deploys, and it keeps the schedule visible in the same
+# place as everything else. If the sweep ever needs to run more often than
+# hourly, move it to an Azure Function - Actions cron is best-effort and can be
+# late by several minutes under load.
+
+name: Monitor sweep
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every six hours
+  workflow_dispatch:         # and on demand, for testing
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sweep monitored positions
+        run: |
+          code=$(curl -s -o /tmp/out.json -w "%{http_code}" -X POST \
+            "https://aic.lareo.ai/api/v1/monitor/sweep?token=${{ secrets.AIC_OPS_TOKEN }}")
+          echo "HTTP $code"
+          cat /tmp/out.json
+          test "$code" = "200"
