@@ -1,233 +1,316 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import "./dashboard.css";
 import { MarketPhase, PhasedSymbol, useMarketPhases } from "./market-phase";
+import { decisionLabel, monitorStateLabel } from "@/lib/decision-labels";
+import "./monitor.css";
 
 /**
- * The first thing a returning client sees.
+ * The client's desk: what they decided, and whether it still stands.
  *
- * Their own work, and what the market has done to it since they were last here.
- * Deliberately a standing report rather than a live screen: nothing refreshes on
- * a timer, nothing ticks, and there is no reason to leave it open. A research
- * platform that trains people to watch prices move is working against the
- * decisions it exists to support.
+ * Formerly two pages. The dashboard answered "what moved since you were last
+ * here" and the monitor answered "what changed since the committee met", from
+ * the same reports and the same quotes - two market-data fetches for one figure,
+ * and two caches that could disagree about it. A client seeing 11.2% on one page
+ * and 11.4% on the other has a reason to distrust everything else on both.
  *
- * Movement is reported, never interpreted. A price is down 4%; the row says so
- * and offers the review that already argued the case. What that means for this
- * client is theirs to decide.
+ * The merge also settled which baseline is right. "Since your last visit" moves
+ * because somebody opened a tab, which quietly rewards opening tabs - the exact
+ * mechanic docs/ENGAGEMENT.md rules out. "Since the committee met" is fixed, and
+ * it answers the question actually worth asking: does the decision still stand.
+ * The visit time survives as framing at the top and measures nothing.
+ *
+ * Cards rather than a list: each position is a self-contained state - what was
+ * decided, what changed, what to do - and a table row cannot carry that without
+ * becoming a table nobody reads.
+ *
+ * The cycle this closes: Analyze, Decision, Monitor, Material change, Alert,
+ * Reopen committee, New decision. The last step matters most: an alert that
+ * tells you something changed and leaves you to find your own way back to a
+ * review is where monitoring usually stops being useful.
  */
 
-type Watched = {
-  symbol: string;
-  sessionId: string;
-  decision: string | null;
-  confidence: number | null;
-  reviewedAt: string;
-  priceAtReview: number | null;
-  price: number | null;
-  currency: string | null;
-  changeSinceReviewPercent: number | null;
-  reviewTriggers: string[];
+type Alert = {
+  id: string; symbol: string; sessionId: string | null;
+  kind: "price" | "filing" | "news" | "thesis" | "age";
+  level: "notable" | "review";
+  headline: string; detail: string; trigger: string | null; raisedAt: string;
 };
 
-type Build = { sessionId: string; label: string; completedAt: string; growthAssetPercent?: number | null };
+type Signal = { kind: string; level: "steady" | "notable" | "review"; text: string; trigger?: string | null };
+
+type Card = {
+  symbol: string; held: boolean; watched: boolean;
+  sessionId: string | null; decision: string | null; confidence: number | null;
+  reviewedAt: string | null; price: number | null; changePercent: number | null;
+  level: "steady" | "notable" | "review";
+  signals: Signal[]; reviewTriggers: string[]; alerts: Alert[];
+};
+
+type Plan = { sessionId: string; completedAt: string; growthAssetPercent: number | null };
 
 type Data = {
-  since: string | null;
-  signedIn: boolean;
-  hasHistory: boolean;
-  watched: Watched[];
-  builds: Build[];
-  totals: { reviews: number; plans: number };
+  cards: Card[]; plans: Plan[]; alerts: Alert[];
+  lastSweepAt: string | null; nextSweepAt: string | null;
+  sweepIntervalHours?: number; truncated: number;
+  hasHistory: boolean; since: string | null; signedIn: boolean;
 };
 
-const ago = (iso: string) => {
-  const days = Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 30) return `${days} days ago`;
-  return new Date(iso).toLocaleDateString();
+const when = (iso: string | null) => {
+  if (!iso) return "never";
+  const mins = Math.round((Date.now() - Date.parse(iso)) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+};
+
+const until = (iso: string | null) => {
+  if (!iso) return "not scheduled";
+  const mins = Math.round((Date.parse(iso) - Date.now()) / 60_000);
+  if (mins <= 0) return "due now";
+  if (mins < 60) return `in ${mins} min`;
+  return `in ${Math.round(mins / 60)}h`;
+};
+
+const KIND_LABEL: Record<string, string> = {
+  price: "Price", filing: "New filing", news: "News", thesis: "Committee condition", age: "Age"
 };
 
 export function Dashboard() {
   const [data, setData] = useState<Data | null>(null);
   const [open, setOpen] = useState<string | null>(null);
-  /* One request for every ticker on the page; the server resolves each one's
-     exchange, so a London holding is not coloured by New York's hours. */
-  const phases = useMarketPhases((data?.watched ?? []).map((w) => w.symbol));
+  const [query, setQuery] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-  /*
-   * A ticker in the URL belongs to the analyze wizard, which asks the questions
-   * a review needs. Older links point at /?ticker=X, so they are forwarded
-   * rather than broken.
-   *
-   * Decided in the initial state rather than an effect, so the dashboard is
-   * never fetched and never briefly rendered on the way past.
-   */
-  const [deepLink] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const wanted = new URLSearchParams(window.location.search).get("ticker");
-    if (!wanted || !/^[A-Za-z0-9.\-]{1,12}$/.test(wanted)) return false;
-    window.location.replace(`/analyze?ticker=${encodeURIComponent(wanted)}`);
-    return true;
-  });
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/v1/monitor", { cache: "no-store" });
+      setData((await res.json()) as Data);
+    } catch {
+      setData({
+        cards: [], plans: [], alerts: [], lastSweepAt: null, nextSweepAt: null,
+        truncated: 0, hasHistory: false, since: null, signedIn: false
+      });
+    }
+  }, []);
 
-  useEffect(() => {
-    if (deepLink) return;
-    fetch("/api/v1/dashboard", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((body: Data) => setData(body))
-      .catch(() => setData(null));
-  }, [deepLink]);
+  useEffect(() => { void load(); }, [load]);
 
-  if (deepLink) return null;   // already navigating to the analyze wizard
+  const phases = useMarketPhases((data?.cards ?? []).map((c) => c.symbol));
 
-  if (!data) return <main className="dash"><p className="dashNote">Loading…</p></main>;
-
-  if (!data.hasHistory) {
-    return (
-      <main className="dash">
-        <header className="dashHead">
-          <h1>Where you left off</h1>
-          <p className="dashLede">
-            Once you have run a session this is where it lives: what you concluded, and what has
-            moved since. Nothing here yet.
-          </p>
-        </header>
-        <section className="dashStart">
-          <Link className="dashPrimary" href="/analyze">Review an instrument</Link>
-          <Link className="dashSecondary" href="/build">Build a plan</Link>
-        </section>
-      </main>
-    );
+  async function watch() {
+    const symbol = query.trim().toUpperCase();
+    if (!symbol || busy) return;
+    setBusy(true); setError("");
+    try {
+      const res = await fetch("/api/v1/watchlist", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol })
+      });
+      if (!res.ok) {
+        const body = (await res.json()) as { error?: { message?: string } };
+        setError(body.error?.message ?? "Could not add that.");
+      } else { setQuery(""); await load(); }
+    } catch {
+      setError("Could not reach the server.");
+    } finally { setBusy(false); }
   }
 
+  async function dismiss(symbol: string) {
+    await fetch("/api/v1/monitor/ack", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol })
+    }).catch(() => undefined);
+    await load();
+  }
+
+  async function unwatch(symbol: string) {
+    await fetch(`/api/v1/watchlist?symbol=${encodeURIComponent(symbol)}`, { method: "DELETE" })
+      .catch(() => undefined);
+    await load();
+  }
+
+  if (!data) return <main className="mon"><p className="monNote">Loading…</p></main>;
+
+  const sinceLine = data.since
+    ? `Since you were last here, ${when(data.since).replace(" ago", " ago")}.`
+    : null;
+
+  const needing = data.cards.filter((c) => c.level === "review").length;
+
   return (
-    <main className="dash">
-      <header className="dashHead">
-        <h1>Where you left off</h1>
-        <p className="dashLede">
-          {data.since
-            ? `What has moved since you were last here, ${ago(data.since)}.`
-            : "Your work so far, and what the market has done to it since."}
+    <main className="mon">
+      <header className="monHead">
+        <div className="monTitle">
+          <h1>Where you left off</h1>
+          <MarketPhase compact />
+        </div>
+        <p className="monLede">
+          What has changed against each committee decision — not what the market did today.
+          {sinceLine ? ` ${sinceLine}` : ""}
+        </p>
+        <p className="monClock">
+          Last checked {when(data.lastSweepAt)} · next check {until(data.nextSweepAt)}
+          {data.sweepIntervalHours ? ` · every ${data.sweepIntervalHours}h` : ""}
         </p>
       </header>
 
-      {data.watched.length > 0 && (
-        <section className="dashSection">
-          <div className="dashSectionHead">
-            <h2>Instruments you reviewed</h2>
-            <Link href="/reports" className="dashMore">All sessions</Link>
-          </div>
-
-          <ul className="dashList">
-            {data.watched.map((w) => {
-              const move = w.changeSinceReviewPercent;
-              const dir = move === null ? "flat" : move > 0.05 ? "up" : move < -0.05 ? "down" : "flat";
-              return (
-                <li key={w.sessionId} className="dashRow">
-                  <button
-                    className="dashRowHead"
-                    onClick={() => setOpen(open === w.sessionId ? null : w.sessionId)}
-                    aria-expanded={open === w.sessionId}
-                  >
-                    <PhasedSymbol
-                      className="dashSymbol"
-                      symbol={w.symbol}
-                      session={phases[w.symbol]}
-                    />
-                    <span className="dashVerdict">
-                      {w.decision ?? "no decision"}
-                      {w.confidence !== null && <em> · {Math.round(w.confidence * 100)}%</em>}
-                    </span>
-                    <span className={`dashMove ${dir}`}>
-                      {move === null
-                        ? "price unavailable"
-                        : `${move > 0 ? "+" : ""}${move.toFixed(1)}%`}
-                    </span>
-                    <span className="dashWhen">{ago(w.reviewedAt)}</span>
-                  </button>
-
-                  {open === w.sessionId && (
-                    <div className="dashDetail">
-                      {move !== null && (
-                        <p className="dashDetailLine">
-                          Since the committee met, {w.symbol} has moved {move > 0 ? "up" : "down"}{" "}
-                          {Math.abs(move).toFixed(1)}%
-                          {w.priceAtReview && w.price
-                            ? ` — ${w.currency ?? ""} ${w.priceAtReview.toFixed(2)} then, ${w.price.toFixed(2)} now.`
-                            : "."}
-                        </p>
-                      )}
-
-                      {w.reviewTriggers.length > 0 && (
-                        <div className="dashTriggers">
-                          <p className="dashTriggersHead">The committee said to revisit if</p>
-                          <ul>
-                            {w.reviewTriggers.map((t, i) => (
-                              <li key={i}>{t}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      <div className="dashDetailActions">
-                        <Link className="dashPrimary" href={`/report/${w.sessionId}`}>
-                          Read the report
-                        </Link>
-                        <Link className="dashSecondary" href={`/analyze?ticker=${encodeURIComponent(w.symbol)}`}>
-                          Review it again
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-
-          <p className="dashNote">
-            <MarketPhase />{" "}
-            Prices are shown against the day the committee met, not as a live feed. Nothing here
-            updates while you watch it.
-          </p>
-        </section>
+      {needing > 0 && (
+        <p className="monBanner">
+          {needing === 1 ? "One position needs" : `${needing} positions need`} a second look.
+        </p>
       )}
 
-      {data.builds.length > 0 && (
-        <section className="dashSection">
-          <div className="dashSectionHead">
-            <h2>Your plans</h2>
-          </div>
-          <ul className="dashList">
-            {data.builds.map((b) => (
-              <li key={b.sessionId} className="dashRow">
-                <Link href={`/report/${b.sessionId}`} className="dashRowHead dashRowLink">
-                  <span className="dashSymbol">Plan</span>
-                  <span className="dashVerdict">
-                    {b.growthAssetPercent !== null && b.growthAssetPercent !== undefined
-                      ? `${b.growthAssetPercent.toFixed(0)}% growth assets`
-                      : "allocation"}
+      <section className="monAdd">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") void watch(); }}
+          placeholder="Watch a ticker — AAPL"
+          maxLength={16} autoComplete="off" spellCheck={false}
+        />
+        <button onClick={() => void watch()} disabled={busy || !query.trim()}>Watch</button>
+      </section>
+      {error && <p className="monError">{error}</p>}
+
+      {data.cards.length === 0 ? (
+        <div className="monEmpty">
+          <p>Nothing to monitor yet.</p>
+          <p className="monNote">
+            Positions appear here once you have reviewed them, added them to your portfolio, or
+            watched one above.
+          </p>
+          <Link className="monPrimary" href="/analyze">Review an instrument</Link>
+        </div>
+      ) : (
+        <div className="monGrid">
+          {data.cards.map((c) => {
+            const expanded = open === c.symbol;
+            return (
+              <article key={c.symbol} className={`monCard level-${c.level}`}>
+                <header className="monCardHead">
+                  <PhasedSymbol className="monSymbol" symbol={c.symbol} session={phases[c.symbol]} />
+                  <span className="monTags">
+                    {c.held && <em>Held</em>}
+                    {c.watched && !c.held && <em>Watching</em>}
                   </span>
-                  <span className="dashMove flat" />
-                  <span className="dashWhen">{ago(b.completedAt)}</span>
+                </header>
+
+                <p className="monDecision">
+                  {c.decision ? decisionLabel(c.decision) : "Not yet reviewed"}
+                  {c.confidence !== null && <i> · {Math.round(c.confidence * 100)}% confidence</i>}
+                </p>
+
+                <p className={`monStatus status-${c.level}`}>
+                  <span className="monStatusDot" aria-hidden="true" />
+                  {monitorStateLabel(c.level).toUpperCase()}
+                </p>
+
+                {c.changePercent !== null && (
+                  <p className="monMove">
+                    {c.changePercent > 0 ? "+" : ""}{c.changePercent.toFixed(1)}% since the review
+                  </p>
+                )}
+
+                {c.signals.length > 0 && (
+                  <ul className="monWhat">
+                    {c.signals.slice(0, expanded ? 99 : 2).map((s, i) => (
+                      <li key={i} className={`sig-${s.level}`}>
+                        <b>{KIND_LABEL[s.kind] ?? s.kind}</b>
+                        {s.text}
+                        {s.trigger && <q>{s.trigger}</q>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {expanded && c.reviewTriggers.length > 0 && (
+                  <div className="monTriggers">
+                    <p className="monTriggersHead">The committee said to revisit if</p>
+                    <ul>{c.reviewTriggers.map((t, i) => <li key={i}>{t}</li>)}</ul>
+                    <p className="monNote">
+                      Checked against what changed, not evaluated for you — these need a judgement.
+                    </p>
+                  </div>
+                )}
+
+                <div className="monCardFoot">
+                  {c.level === "review" ? (
+                    <Link className="monPrimary" href={`/analyze?ticker=${encodeURIComponent(c.symbol)}`}>
+                      Reopen committee
+                    </Link>
+                  ) : (
+                    c.sessionId && (
+                      <Link className="monSecondary" href={`/report/${c.sessionId}`}>Report</Link>
+                    )
+                  )}
+
+                  {c.signals.length > 2 || c.reviewTriggers.length > 0 ? (
+                    <button className="monLink" onClick={() => setOpen(expanded ? null : c.symbol)}>
+                      {expanded ? "Less" : "Details"}
+                    </button>
+                  ) : null}
+
+                  {c.alerts.length > 0 && (
+                    <button className="monLink" onClick={() => void dismiss(c.symbol)}>Mark seen</button>
+                  )}
+                  {c.watched && !c.held && (
+                    <button className="monLink monRemove" onClick={() => void unwatch(c.symbol)}>
+                      Stop watching
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      {data.plans.length > 0 && (
+        <section className="monPlans">
+          <h2>Your plans</h2>
+          <ul>
+            {data.plans.map((p) => (
+              <li key={p.sessionId}>
+                <Link href={`/report/${p.sessionId}`}>
+                  <span>
+                    {p.growthAssetPercent !== null
+                      ? `${p.growthAssetPercent.toFixed(0)}% growth assets`
+                      : "Allocation"}
+                  </span>
+                  <em>{when(p.completedAt)}</em>
                 </Link>
               </li>
             ))}
           </ul>
+          <p className="monNote">
+            A plan is a shape rather than a position, so there is nothing here to monitor — open one
+            to see the allocation and the reasoning behind each weight.
+          </p>
         </section>
       )}
 
-      <section className="dashStart">
-        <Link className="dashPrimary" href="/analyze">Review an instrument</Link>
-        <Link className="dashSecondary" href="/build">Build a plan</Link>
-      </section>
+      {data.truncated > 0 && (
+        <p className="monNote">
+          {data.truncated} more not shown. Monitoring is capped so one sweep does not exhaust the
+          market-data budget the reviews depend on.
+        </p>
+      )}
 
-      {!data.signedIn && (
-        <p className="dashWarning">
-          This is kept in this browser. Create an account and it follows you between devices.
+      <p className="monNote monFoot">
+        Checks run on a schedule and when you open this page. Nothing here updates while you watch
+        it, and no alert is raised for ordinary price movement — only for something touching a
+        condition the committee wrote down.
+      </p>
+
+      {!data.signedIn && data.cards.length > 0 && (
+        <p className="monWarning">
+          This is kept in this browser, and scheduled checks only run for accounts. Create one and
+          both follow you.
         </p>
       )}
     </main>

@@ -1,65 +1,98 @@
-/* Returning-client dashboard. Calm on purpose: no live tickers, no colour
-   screaming for attention, nothing that rewards leaving the tab open. */
+/* Monitor. Cards, because each position is a state rather than a row: what was
+   decided, what changed, what to do. Colour marks whether something needs
+   attention - never whether a price rose. */
 
-.dash{max-width:880px;margin:0 auto;padding:44px 22px 90px;color:#E9EFF7}
-.dashHead h1{margin:0 0 8px;font-size:26px;letter-spacing:-.02em}
-.dashLede{margin:0 0 32px;font-size:13.5px;color:#8A97AA;line-height:1.6}
+.mon{max-width:1000px;margin:0 auto;padding:44px 22px 90px;color:#E9EFF7}
+.monTitle{display:flex;align-items:center;gap:12px}
+.monTitle h1{margin:0;font-size:25px;letter-spacing:-.02em}
+.monLede{margin:8px 0 4px;font-size:13.5px;color:#8A97AA}
+.monClock{margin:0;font-size:11.5px;color:#66748A;font-variant-numeric:tabular-nums}
+.monNote{margin:8px 0 0;font-size:12px;line-height:1.6;color:#66748A;max-width:66ch}
+.monFoot{margin-top:32px;padding-top:16px;border-top:1px solid rgba(27,51,80,.55)}
 
-.dashSection{margin-bottom:38px}
-.dashSectionHead{display:flex;align-items:baseline;justify-content:space-between;gap:14px;
-  margin-bottom:10px}
-.dashSectionHead h2{margin:0;font-size:15px;letter-spacing:-.01em}
-.dashMore{font-size:12.5px;color:#8fb8e8;text-decoration:none}
-.dashMore:hover{color:#E9EFF7}
+.monBanner{margin:20px 0 0;padding:12px 15px;border-radius:9px;font-size:13px;
+  border:1px solid rgba(232,146,124,.35);background:rgba(232,146,124,.07);color:#F0C0B0}
 
-.dashList{list-style:none;margin:0;padding:0}
-.dashRow{border-top:1px solid rgba(27,51,80,.7)}
-.dashRow:last-child{border-bottom:1px solid rgba(27,51,80,.7)}
+.monAdd{display:flex;gap:9px;margin:20px 0 6px;max-width:460px}
+.monAdd input{flex:1;background:rgba(255,255,255,.04);border:1px solid #1b3350;color:#E9EFF7;
+  border-radius:9px;padding:11px 13px;font:inherit;font-size:max(1rem,16px)}
+.monAdd input:focus{outline:none;border-color:#4DA3FF}
+.monAdd button{background:none;border:1px solid #1b3350;color:#E9EFF7;padding:11px 18px;
+  border-radius:9px;font:inherit;font-size:13px;cursor:pointer;min-height:44px}
+.monAdd button:hover:not(:disabled){border-color:#4DA3FF}
+.monAdd button:disabled{opacity:.45;cursor:default}
 
-.dashRowHead{display:grid;grid-template-columns:78px 1fr auto 82px;align-items:center;gap:12px;
-  width:100%;padding:14px 4px;background:none;border:0;color:inherit;font:inherit;text-align:left;
-  cursor:pointer;min-height:52px}
-.dashRowHead:hover{background:rgba(255,255,255,.02)}
-.dashRowHead:focus-visible{outline:2px solid #4DA3FF;outline-offset:-2px}
-.dashRowLink{text-decoration:none}
+.monGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;
+  margin-top:22px}
 
-.dashSymbol{font-size:14px;font-weight:700;letter-spacing:.02em}
-.dashVerdict{font-size:12.5px;color:#8A97AA;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dashVerdict em{font-style:normal;color:#66748A}
+.monCard{border:1px solid #1b3350;border-left-width:3px;border-radius:12px;padding:15px 16px;
+  background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:9px}
+.level-steady{border-left-color:#3A4657}
+.level-notable{border-left-color:#D9A648}
+.level-review{border-left-color:#E8927C}
 
-/* Movement is information, not a verdict, so it is stated quietly rather than in
-   trading-screen red and green. */
-.dashMove{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.dashMove.up{color:#7BD389}
-.dashMove.down{color:#E8927C}
-.dashMove.flat{color:#66748A}
-.dashWhen{font-size:12px;color:#66748A;text-align:right;white-space:nowrap}
+.monCardHead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.monSymbol{font-size:15px;font-weight:700;letter-spacing:.02em}
+.monTags{display:flex;gap:5px}
+.monTags em{font-style:normal;font-size:9px;letter-spacing:.07em;text-transform:uppercase;
+  padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.05);color:#8A97AA}
 
-.dashDetail{padding:2px 4px 18px 4px}
-.dashDetailLine{margin:0 0 14px;font-size:13px;line-height:1.6;color:#9AA7BA}
-.dashTriggers{margin-bottom:16px}
-.dashTriggersHead{margin:0 0 7px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+.monDecision{margin:0;font-size:13px;color:#E9EFF7}
+.monDecision i{font-style:normal;color:#66748A;font-size:12px}
+
+.monStatus{display:flex;align-items:center;gap:7px;margin:0;font-size:10.5px;letter-spacing:.09em}
+.monStatusDot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:0 0 6px}
+.status-steady{color:#7A8699}
+.status-notable{color:#D9A648}
+.status-review{color:#E8927C}
+
+.monMove{margin:0;font-size:12.5px;color:#8A97AA;font-variant-numeric:tabular-nums}
+
+.monWhat{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}
+.monWhat li{font-size:12px;line-height:1.55;color:#9AA7BA;padding:9px 11px;border-radius:8px;
+  border:1px solid rgba(27,51,80,.8)}
+.monWhat b{display:block;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:#66748A;margin-bottom:3px}
+.monWhat q{display:block;margin-top:6px;font-style:italic;color:#8A97AA;quotes:none}
+.sig-notable{background:rgba(217,166,72,.06);border-color:rgba(217,166,72,.28)}
+.sig-review{background:rgba(232,146,124,.06);border-color:rgba(232,146,124,.28)}
+
+.monTriggers{margin-top:2px}
+.monTriggersHead{margin:0 0 6px;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
   color:#66748A}
-.dashTriggers ul{margin:0;padding-left:18px;font-size:12.5px;line-height:1.65;color:#9AA7BA}
-.dashTriggers li{margin-bottom:5px}
+.monTriggers ul{margin:0;padding-left:16px;font-size:12px;line-height:1.6;color:#9AA7BA}
+.monTriggers li{margin-bottom:4px}
 
-.dashDetailActions,.dashStart{display:flex;gap:10px;flex-wrap:wrap}
-.dashStart{margin-top:34px}
-.dashPrimary{background:#4DA3FF;color:#04101F;padding:11px 18px;border-radius:9px;font-size:13px;
+.monCardFoot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+.monPrimary{background:#4DA3FF;color:#04101F;padding:9px 15px;border-radius:8px;font-size:12.5px;
   font-weight:600;text-decoration:none}
-.dashSecondary{border:1px solid #1b3350;color:#E9EFF7;padding:11px 18px;border-radius:9px;
-  font-size:13px;text-decoration:none}
-.dashSecondary:hover{border-color:#4DA3FF}
+.monSecondary{border:1px solid #1b3350;color:#E9EFF7;padding:9px 15px;border-radius:8px;
+  font-size:12.5px;text-decoration:none}
+.monSecondary:hover{border-color:#4DA3FF}
+.monLink{background:none;border:0;color:#8fb8e8;font:inherit;font-size:12px;cursor:pointer;padding:6px 2px}
+.monLink:hover{color:#E9EFF7}
+.monRemove:hover{color:#E8927C}
 
-.dashNote{margin:12px 0 0;font-size:11.5px;color:#66748A;line-height:1.6}
-.dashWarning{margin-top:26px;border:1px solid rgba(245,184,77,.32);background:rgba(245,184,77,.06);
+.monEmpty{border:1px solid #1b3350;border-radius:12px;padding:30px 22px;text-align:center;margin-top:22px}
+.monEmpty p{margin:0 0 10px;color:#8A97AA;font-size:13.5px}
+.monEmpty .monPrimary{display:inline-block;margin-top:8px}
+.monError{margin:8px 0 0;font-size:12.5px;color:#EF4444}
+.monWarning{margin-top:22px;border:1px solid rgba(245,184,77,.32);background:rgba(245,184,77,.06);
   padding:12px 15px;border-radius:9px;font-size:12.5px;line-height:1.6;color:#F0D6A4}
 
-@media (max-width:620px){
-  .dashRowHead{grid-template-columns:70px 1fr auto;grid-template-areas:"sym verdict move";
-    padding:13px 4px}
-  .dashSymbol{grid-area:sym}
-  .dashVerdict{grid-area:verdict}
-  .dashMove{grid-area:move}
-  .dashWhen{display:none}
+@media (max-width:560px){
+  .monGrid{grid-template-columns:1fr}
 }
+
+/* Plans. Carried over from the old dashboard - an allocation is a shape, not a
+   position, so it sits below the monitored cards rather than among them. */
+.monPlans{margin-top:34px}
+.monPlans h2{margin:0 0 10px;font-size:15px;letter-spacing:-.01em}
+.monPlans ul{list-style:none;margin:0;padding:0}
+.monPlans li{border-top:1px solid rgba(27,51,80,.7)}
+.monPlans li:last-child{border-bottom:1px solid rgba(27,51,80,.7)}
+.monPlans a{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:13px 4px;text-decoration:none;color:inherit;min-height:48px}
+.monPlans a:hover{background:rgba(255,255,255,.02)}
+.monPlans span{font-size:13.5px}
+.monPlans em{font-style:normal;font-size:12px;color:#66748A}

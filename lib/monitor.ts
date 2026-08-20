@@ -144,6 +144,8 @@ async function subjectsFor(ownerId: string): Promise<{
   subjects: Subject[];
   reviews: Map<string, Awaited<ReturnType<typeof listReports>>[number]>;
   truncated: number;
+  plans: PlanCard[];
+  hasHistory: boolean;
 }> {
   const [reports, holdings, watchlist] = await Promise.all([
     listReports(ownerId),
@@ -162,6 +164,18 @@ async function subjectsFor(ownerId: string): Promise<{
   const all = [...new Set([...reviews.keys(), ...held, ...watching])];
   const chosen = all.slice(0, MAX_SYMBOLS);
 
+  /* Plans have no instrument to monitor - an allocation is a shape, not a
+     position - so they are carried through as a list rather than swept. They
+     were the one thing the dashboard had that the monitor did not. */
+  const plans: PlanCard[] = reports
+    .filter((r) => r.type === "BUILD")
+    .slice(0, 3)
+    .map((r) => ({
+      sessionId: r.sessionId,
+      completedAt: r.completedAt,
+      growthAssetPercent: r.growthAssetPercent ?? null
+    }));
+
   return {
     subjects: chosen.map((symbol) => ({
       symbol,
@@ -169,11 +183,22 @@ async function subjectsFor(ownerId: string): Promise<{
       watched: watching.has(symbol)
     })),
     reviews,
-    truncated: Math.max(0, all.length - chosen.length)
+    truncated: Math.max(0, all.length - chosen.length),
+    plans,
+    hasHistory: reports.length > 0 || held.size > 0 || watching.size > 0
   };
 }
 
-export type SweepResult = { state: MonitorState; cards: MonitorCard[]; raised: Alert[]; truncated: number };
+export type PlanCard = { sessionId: string; completedAt: string; growthAssetPercent: number | null };
+
+export type SweepResult = {
+  state: MonitorState;
+  cards: MonitorCard[];
+  plans: PlanCard[];
+  raised: Alert[];
+  truncated: number;
+  hasHistory: boolean;
+};
 
 /**
  * Looks at everything once, compares against what was stored, raises alerts for
@@ -187,7 +212,7 @@ export async function sweep(
   options: { checkThesis?: boolean } = {}
 ): Promise<SweepResult> {
   const state = await getMonitorState(ownerId);
-  const { subjects, reviews, truncated } = await subjectsFor(ownerId);
+  const { subjects, reviews, truncated, plans, hasHistory } = await subjectsFor(ownerId);
   const raised: Alert[] = [];
   const cards: MonitorCard[] = [];
 
@@ -370,5 +395,5 @@ export async function sweep(
   const rank: Record<Level, number> = { review: 0, notable: 1, steady: 2 };
   cards.sort((a, b) => rank[a.level] - rank[b.level] || b.alerts.length - a.alerts.length);
 
-  return { state: saved, cards, raised, truncated };
+  return { state: saved, cards, plans, raised, truncated, hasHistory };
 }

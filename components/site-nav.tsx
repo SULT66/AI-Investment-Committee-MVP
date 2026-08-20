@@ -30,12 +30,17 @@ import "./site-nav.css";
 type Me = { account: { email: string; staff?: boolean } | null };
 
 const LINKS = [
-  { href: "/dashboard", label: "Dashboard", match: (p: string) => p.startsWith("/dashboard") },
+  /* Monitor was folded in here: one page, one answer. The match still covers
+     /monitor so the item stays highlighted while the redirect happens. */
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    match: (p: string) => p.startsWith("/dashboard") || p.startsWith("/monitor")
+  },
   { href: "/analyze", label: "Analyze", match: (p: string) => p.startsWith("/analyze") },
   { href: "/build", label: "Build", match: (p: string) => p.startsWith("/build") },
   { href: "/portfolio", label: "Portfolio", match: (p: string) => p.startsWith("/portfolio") },
   { href: "/review", label: "Review", match: (p: string) => p.startsWith("/review") },
-  { href: "/monitor", label: "Monitor", match: (p: string) => p.startsWith("/monitor") },
   { href: "/reports", label: "Sessions", match: (p: string) => p.startsWith("/reports") },
   { href: "/terms#plans", label: "Plans", match: () => false }
 ];

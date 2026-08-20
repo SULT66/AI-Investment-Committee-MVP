@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { accountFromRequest } from "@/lib/accounts";
 import { VISITOR_COOKIE, readVisitorCookie } from "@/lib/entitlements";
 import { SWEEP_INTERVAL_HOURS, sweep } from "@/lib/monitor";
+import { touchVisit } from "@/lib/client-state";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,16 +32,29 @@ export async function GET(request: Request) {
 
   if (!owner) {
     return NextResponse.json(
-      { cards: [], alerts: [], lastSweepAt: null, nextSweepAt: null, truncated: 0, signedIn: false },
+      { cards: [], plans: [], alerts: [], lastSweepAt: null, nextSweepAt: null,
+        truncated: 0, hasHistory: false, since: null, signedIn: false },
       { headers: { "Cache-Control": "no-store" } }
     );
   }
 
-  const { state, cards, truncated } = await sweep(owner, { checkThesis: false });
+  /* The visit marker survives the merge, but demoted: it frames the page ("since
+     you were last here") and no longer measures anything. A baseline that moves
+     because somebody opened a tab rewards opening tabs; every figure here is now
+     measured against the committee decision instead, which is a fixed point that
+     means something. */
+  const [swept, since] = await Promise.all([
+    sweep(owner, { checkThesis: false }),
+    touchVisit(owner)
+  ]);
+  const { state, cards, plans, truncated, hasHistory } = swept;
 
   return NextResponse.json(
     {
       cards,
+      plans,
+      hasHistory,
+      since,
       alerts: state.alerts.filter((a) => !a.acknowledgedAt),
       lastSweepAt: state.lastSweepAt,
       nextSweepAt: state.nextSweepAt,
