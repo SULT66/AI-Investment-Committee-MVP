@@ -266,7 +266,11 @@ export async function runBuildJob(
     }
   };
 
-  const agentTimeout = timeoutFromEnv("AIC_AGENT_TIMEOUT_MS", 150_000, 20_000, 240_000);
+  /* 150s was chosen when a session ran in 104s. Prompts have since grown -
+     methods, financials, source disagreements - and the median is now 198s, so
+     the tail was landing on the ceiling. Raised, and the upper bound raised too
+     so the retry has somewhere to go. */
+  const agentTimeout = timeoutFromEnv("AIC_AGENT_TIMEOUT_MS", 240_000, 20_000, 420_000);
   const languageName = LANGUAGE_NAMES[input.language] ?? "English";
   const sessionStarted = Date.now();
   void record({ kind: "session.started", sessionId });

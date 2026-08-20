@@ -176,23 +176,56 @@ async function callAnthropic(call: ModelCall, choice: ModelChoice): Promise<Mode
   };
 }
 
+/**
+ * One retry, and only on a timeout.
+ *
+ * Three of four sessions lost a member to AGENT_TIMEOUT once the prompts grew:
+ * methods, company financials and source disagreements all landed in the same
+ * context, session time went from a median of 104s to 198s, and the tail of the
+ * distribution started hitting the ceiling. A seat that times out is usually
+ * unlucky rather than broken - it answers on the second attempt.
+ *
+ * Retried only on timeout, deliberately. A 400 means the request is wrong and
+ * will be wrong again; a 429 wants backoff rather than an immediate repeat; a
+ * schema failure repeats identically. Retrying those spends money to receive the
+ * same answer.
+ *
+ * The second attempt gets a shorter budget, so one slow seat cannot double the
+ * length of the meeting.
+ */
 export async function callAgentModel(call: ModelCall): Promise<ModelResult> {
   const choice = modelForAgent(call.agentKey);
-  const started = Date.now();
-  try {
-    const result =
-      choice.provider === "anthropic"
-        ? await callAnthropic(call, choice)
-        : await callOpenAI(call, choice);
-    void record({ kind: "provider.call", provider: choice.provider, durationMs: Date.now() - started });
-    return result;
-  } catch (error) {
-    void record({
-      kind: "provider.failed",
-      provider: choice.provider,
-      code: error instanceof Error ? error.message.slice(0, 40) : "unknown",
-      durationMs: Date.now() - started
-    });
-    throw error;
+  const attempts = process.env.AIC_AGENT_RETRY === "0" ? 1 : 2;
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const started = Date.now();
+    const timeoutMs = attempt === 1 ? call.timeoutMs : Math.round(call.timeoutMs * 0.6);
+
+    try {
+      const result =
+        choice.provider === "anthropic"
+          ? await callAnthropic({ ...call, timeoutMs }, choice)
+          : await callOpenAI({ ...call, timeoutMs }, choice);
+      void record({
+        kind: "provider.call",
+        provider: choice.provider,
+        durationMs: Date.now() - started
+      });
+      return result;
+    } catch (error) {
+      lastError = error;
+      const timedOut = error instanceof Error && error.name === "UpstreamTimeoutError";
+      void record({
+        kind: "provider.failed",
+        provider: choice.provider,
+        code: timedOut ? "TIMEOUT" : error instanceof Error ? error.message.slice(0, 40) : "unknown",
+        durationMs: Date.now() - started
+      });
+      if (!timedOut || attempt === attempts) throw error;
+      console.error(`[model-router] ${call.agentKey} timed out, retrying once`);
+    }
   }
+
+  throw lastError instanceof Error ? lastError : new Error("model call failed");
 }
