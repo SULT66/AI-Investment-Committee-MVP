@@ -476,15 +476,27 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
             </ul>
           )}
 
-          <h4 className="evidenceSub">Market data</h4>
+          {/* On a plan or a portfolio review these figures are the broad-market
+              benchmark the committee reasoned against, not the subject of the
+              session. Labelled as such: "Market data · Price 769.06" over a plan
+              invites the reading that the plan itself has a price. Per-share
+              ratios are dropped there too - they were rendering as dashes. */}
+          <h4 className="evidenceSub">
+            {headerSymbol ? "Market data" : `Market context · ${md?.symbol ?? "benchmark"}`}
+          </h4>
           <dl className="evidenceGrid">
             <div><dt>Price</dt><dd>{md ? fmt(md.currentPrice) : "—"}</dd></div>
             <div><dt>Day range</dt><dd>{md ? `${fmt(md.low)} – ${fmt(md.high)}` : "—"}</dd></div>
             <div><dt>52-week</dt><dd>{md ? `${fmt(md.fiftyTwoWeekLow)} – ${fmt(md.fiftyTwoWeekHigh)}` : "—"}</dd></div>
-            <div><dt>P/E (TTM)</dt><dd>{fmt(md?.peTTM)}</dd></div>
-            <div><dt>EPS (TTM)</dt><dd>{fmt(md?.epsTTM)}</dd></div>
+            {headerSymbol && <div><dt>P/E (TTM)</dt><dd>{fmt(md?.peTTM)}</dd></div>}
+            {headerSymbol && <div><dt>EPS (TTM)</dt><dd>{fmt(md?.epsTTM)}</dd></div>}
             <div><dt>Beta</dt><dd>{fmt(md?.beta)}</dd></div>
           </dl>
+          {!headerSymbol && (
+            <p className="asOf">
+              Conditions the committee reasoned against, not the subject of this session.
+            </p>
+          )}
           <p className="asOf">
             {md?.quoteTime
               ? `Last trade ${new Date(md.quoteTime).toLocaleString()} · ${md.source}`
@@ -507,17 +519,27 @@ export function LiveDesk({ sessionId }: { sessionId: string }) {
             </div>
           )}
 
-          <h4 className="newsHead">Latest {snapshot?.ticker} intelligence</h4>
-          <ul className="newsList">
-            {(snapshot?.news ?? []).slice(0, 4).map((n, i) => (
-              <li key={i}>
-                <time>{n.datetime ? new Date(n.datetime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</time>
-                <a href={n.url} target="_blank" rel="noreferrer">{n.headline}</a>
-                <em>{n.source}</em>
-              </li>
-            ))}
-            {!(snapshot?.news ?? []).length && <li className="empty">No recent headlines returned.</li>}
-          </ul>
+          {/* A plan and a portfolio review have no instrument to have news
+              about. The heading was rendering "Latest PORTFOLIO PLAN
+              intelligence" over "No recent headlines returned", which reads as a
+              broken feed rather than a section that does not apply. */}
+          {headerSymbol && (
+            <>
+              <h4 className="newsHead">Latest {snapshot?.ticker} intelligence</h4>
+              <ul className="newsList">
+                {(snapshot?.news ?? []).slice(0, 4).map((n, i) => (
+                  <li key={i}>
+                    <time>{n.datetime ? new Date(n.datetime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</time>
+                    <a href={n.url} target="_blank" rel="noreferrer">{n.headline}</a>
+                    <em>{n.source}</em>
+                  </li>
+                ))}
+                {!(snapshot?.news ?? []).length && (
+                  <li className="empty">No recent headlines returned.</li>
+                )}
+              </ul>
+            </>
+          )}
         </aside>
 
         {/* ---- decision: PENDING until the reveal event ---- */}
