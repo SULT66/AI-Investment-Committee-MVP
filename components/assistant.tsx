@@ -59,6 +59,42 @@ export function AssistantPanel({
   const [notice, setNotice] = useState("");
   const nextId = useRef(0);
   const bottom = useRef<HTMLDivElement | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  /* The thread belongs to the report, not to the tab. It used to live in React
+     state alone, so printing, following a link or simply coming back tomorrow
+     started from nothing and the client re-asked what they had already asked. */
+  useEffect(() => {
+    fetch(`/api/v1/conversation?sessionId=${encodeURIComponent(sessionId)}`, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((body: { turns?: Array<{ who: string; text: string }> }) => {
+        const turns = body.turns ?? [];
+        if (turns.length) {
+          setThread(
+            turns.map((t, i) => ({
+              id: i,
+              who: t.who,
+              text: t.text,
+              state: "done" as const
+            }))
+          );
+          nextId.current = turns.length + 1;
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => setLoaded(true));
+  }, [sessionId]);
+
+  /* Written after an exchange completes rather than as it streams: a half
+     answer saved and then reloaded would read as a truncated one. */
+  const persist = (turns: Array<{ who: string; text: string }>) => {
+    if (!turns.length) return;
+    void fetch("/api/v1/conversation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, turns })
+    }).catch(() => undefined);
+  };
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -108,18 +144,19 @@ export function AssistantPanel({
       const data = (await res.json()) as {
         answer: string; needsCommittee: boolean; suggestion: string;
       };
+      const finalText =
+        data.answer + (data.needsCommittee && data.suggestion ? `\n\n${data.suggestion}` : "");
       setThread((t) =>
         t.map((x) =>
           x.id === askId + 1
-            ? {
-                ...x,
-                text: data.answer + (data.needsCommittee && data.suggestion ? `\n\n${data.suggestion}` : ""),
-                state: "done",
-                needsCommittee: data.needsCommittee
-              }
+            ? { ...x, text: finalText, state: "done", needsCommittee: data.needsCommittee }
             : x
         )
       );
+      persist([
+        { who: "you", text },
+        { who: "assistant", text: finalText }
+      ]);
     } catch {
       setThread((t) => t.map((x) => (x.id === askId + 1 ? { ...x, state: "failed" } : x)));
       setNotice("Could not reach the server.");
@@ -144,6 +181,8 @@ export function AssistantPanel({
       }))
     ]);
 
+    const answers: Array<{ who: string; text: string }> = [];
+
     await Promise.all(
       COMMITTEE_ORDER.map(async (member, i) => {
         const id = askId + 1 + i;
@@ -165,6 +204,7 @@ export function AssistantPanel({
           }
           const data = (await res.json()) as { turns?: Array<{ text: string }>; canAnswer?: boolean };
           const answer = data.turns?.[0]?.text ?? "";
+          if (answer) answers.push({ who: MEMBER_NAMES[member] ?? member, text: answer });
           setThread((t) =>
             t.map((x) =>
               x.id === id
@@ -181,6 +221,13 @@ export function AssistantPanel({
         }
       })
     );
+
+    /* Saved in seat order rather than the order the answers arrived, so
+       reloading gives the same thread the client just read. */
+    const ordered = COMMITTEE_ORDER.map((m) => MEMBER_NAMES[m] ?? m)
+      .map((name) => answers.find((a) => a.who === name))
+      .filter((a): a is { who: string; text: string } => Boolean(a));
+    persist([{ who: "you", text }, ...ordered]);
   }
 
   async function send() {
@@ -216,11 +263,29 @@ export function AssistantPanel({
             Ask the committee
           </button>
         </div>
-        {onClose && <button className="asstClose" onClick={onClose} aria-label="Close">✕</button>}
+        <div className="asstHeadRight">
+          {thread.length > 0 && (
+            <button
+              className="asstClear"
+              onClick={() => {
+                void fetch(`/api/v1/conversation?sessionId=${encodeURIComponent(sessionId)}`, {
+                  method: "DELETE"
+                }).catch(() => undefined);
+                setThread([]);
+                setNotice("");
+              }}
+            >
+              Clear
+            </button>
+          )}
+          {onClose && <button className="asstClose" onClick={onClose} aria-label="Close">✕</button>}
+        </div>
       </header>
 
       <div className="asstThread">
-        {!thread.length && (
+        {/* Held back until the stored thread has loaded, otherwise the opening
+            prompt flashes over a conversation that is about to appear. */}
+        {loaded && !thread.length && (
           <p className="asstHint">
             {mode === "assistant"
               ? `Ask anything about ${subject} — why the members disagreed, what a figure means, how it sits with what you already hold. The assistant explains the committee's findings; it does not add a view of its own.`
