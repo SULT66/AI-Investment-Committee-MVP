@@ -218,12 +218,17 @@ export async function runCommitteeJob(
     await updateSession(sessionId, { status: "RESEARCHING" });
     await emit(sessionId, "session.research.progress", { stage: "market_data" });
 
-    const [market, fundamentals] = await Promise.all([
+    /* All three together. News used to be fetched after these two had settled,
+       which put a whole extra round trip in front of the committee for no reason
+       - nothing in the market or fundamentals call decides whether news is
+       wanted. */
+    const [market, fundamentals, news] = await Promise.all([
       getMarketSnapshot(input.ticker).catch(() => null),
       /* Turns itself on the day the paid data plan starts. Until then it reports
          "not available" and the prompt says so, rather than leaving a silence a
          model would fill. */
-      getFundamentals(input.ticker)
+      getFundamentals(input.ticker),
+      getCompanyNews(input.ticker).catch(() => [] as NewsItem[])
     ]);
     if (!market) {
       await updateSession(sessionId, {
@@ -247,7 +252,7 @@ export async function runCommitteeJob(
     }
 
     await emit(sessionId, "session.research.progress", { stage: "news" });
-    const news = await getCompanyNews(input.ticker);
+
 
     const profile: InvestorProfile = {
       portfolioValue: input.portfolioValue,
@@ -457,6 +462,11 @@ Weigh the arguments rather than averaging them: a well-argued minority objection
 majority, and the Risk Agent's size limit is binding. reasons are the THREE strongest arguments for
 the decision; risks are the TWO strongest against. dissent records every member who disagreed, by
 name, with their reason.
+
+Be brief. You speak last and the client is waiting on you alone - every second of
+your answer is a second nobody else can shorten. Say what the committee concluded
+and stop: no preamble, no restating what members have already said, no summary of
+your own reasoning process.
 
 ${rules}
 

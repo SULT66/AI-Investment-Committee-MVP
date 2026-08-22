@@ -1,5 +1,11 @@
+import { mkdir, readFile } from "fs/promises";
+import { existsSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
+import { createHash } from "crypto";
 import { fetchWithTimeout, timeoutFromEnv } from "./fetch-timeout";
 import { getEdgarFigures, type EdgarFigures } from "./edgar";
+import { writeFileAtomic } from "./atomic-write";
 
 /**
  * Company financials, assembled from more than one source.
@@ -66,6 +72,51 @@ export type Fundamentals = {
 const CACHE_TTL_MS = Number(process.env.AIC_FUNDAMENTALS_TTL_MS ?? 6 * 60 * 60 * 1000);
 const cache = new Map<string, { at: number; value: Fundamentals }>();
 const inflight = new Map<string, Promise<Fundamentals>>();
+
+/*
+ * The cache also lives on disk.
+ *
+ * In memory alone it was lost on every restart, and this app restarts often -
+ * three times in twenty minutes on one occasion. A cold cache means downloading
+ * the SEC ticker map and roughly four megabytes of company facts again before
+ * the committee can even start, which the client experiences as the session
+ * hanging on "gathering market data".
+ *
+ * /home/data survives restarts, so the second session on a company is fast even
+ * if the first one was interrupted by a deploy.
+ */
+function diskDir(): string {
+  if (process.env.AIC_FUNDAMENTALS_DIR) return process.env.AIC_FUNDAMENTALS_DIR;
+  if (existsSync("/home")) return "/home/data/aic-fundamentals";
+  return join(tmpdir(), "aic-fundamentals");
+}
+
+const diskKey = (symbol: string) =>
+  createHash("sha256").update(symbol).digest("hex").slice(0, 24);
+
+async function readDisk(symbol: string): Promise<Fundamentals | null> {
+  try {
+    const raw = await readFile(join(diskDir(), `${diskKey(symbol)}.json`), "utf8");
+    const cached = JSON.parse(raw) as { at: number; value: Fundamentals };
+    if (!cached?.at || Date.now() - cached.at > CACHE_TTL_MS) return null;
+    return cached.value;
+  } catch {
+    return null;
+  }
+}
+
+async function writeDisk(symbol: string, value: Fundamentals): Promise<void> {
+  try {
+    const dir = diskDir();
+    await mkdir(dir, { recursive: true });
+    await writeFileAtomic(
+      join(dir, `${diskKey(symbol)}.json`),
+      JSON.stringify({ at: Date.now(), value })
+    );
+  } catch {
+    /* a cold cache is slow, not broken */
+  }
+}
 
 /** Finnhub reports "no data" as 0 as readily as a real zero. */
 const num = (value: unknown): number | null => {
@@ -224,6 +275,12 @@ export async function getFundamentals(symbolInput: string): Promise<Fundamentals
   const running = inflight.get(symbol);
   if (running) return running;
 
+  const fromDisk = await readDisk(symbol);
+  if (fromDisk) {
+    cache.set(symbol, { at: Date.now(), value: fromDisk });
+    return fromDisk;
+  }
+
   // Both are attempted; either failing leaves the other's fields intact.
   /* Settled, not all: one source failing must leave the other's fields intact.
      Promise.all would discard a perfectly good filing because the vendor call
@@ -238,6 +295,8 @@ export async function getFundamentals(symbolInput: string): Promise<Fundamentals
     .then((value) => {
       cache.set(symbol, { at: Date.now(), value });
       if (cache.size > 300) cache.delete(cache.keys().next().value as string);
+      /* Written without awaiting: the committee should not wait on housekeeping. */
+      void writeDisk(symbol, value);
       return value;
     })
     .finally(() => inflight.delete(symbol));
