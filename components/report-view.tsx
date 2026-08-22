@@ -157,7 +157,22 @@ export function ReportView({ sessionId }: { sessionId: string }) {
             <div><dt>Confidence</dt><dd>{Math.round(d.confidence * 100)}%</dd></div>
             <div><dt>Portfolio fit</dt><dd>{d.portfolioFit}</dd></div>
             <div><dt>Horizon</dt><dd>{d.horizon || "—"}</dd></div>
-            <div><dt>Your policy limit</dt><dd>{report.sizing ? `${report.sizing.maxPositionPercent.toFixed(1)}%` : "—"}</dd></div>
+            {/* A position limit is a fact about a single instrument. On a plan
+                or a portfolio review there is no position to limit, and an em
+                dash under "Your policy limit" reads as a figure we failed to
+                compute rather than a question that does not arise. */}
+            {isInstrument && (
+              <div>
+                <dt>Your policy limit</dt>
+                <dd>{report.sizing ? `${report.sizing.maxPositionPercent.toFixed(1)}%` : "—"}</dd>
+              </div>
+            )}
+            {report.allocation && (
+              <div>
+                <dt>Growth assets</dt>
+                <dd>{report.allocation.growthAssetPercent.toFixed(1)}%</dd>
+              </div>
+            )}
             <div><dt>Committee vote</dt><dd>{report.tally.buy} · {report.tally.hold} · {report.tally.avoid}</dd></div>
           </dl>
           <p className="riskLine">{RISK_LINE}</p>

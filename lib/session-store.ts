@@ -90,6 +90,10 @@ export type SessionSnapshot = {
      report can be listed back to the person who paid for it. */
   ownerId?: string;
   buildProfile?: { risk: string; horizon: string; goal: string; excludedSectors: string[] };
+  /* BUILD only: the broad-market proxy the committee reasoned against. Kept
+     apart from marketData, which names the subject of a session - a plan has no
+     subject instrument and must not inherit the proxy's identity. */
+  marketContext?: unknown;
   /* REVIEW sessions only: the portfolio the committee examined, as it stood at
      the time. Kept on the session so the report is a record of what was actually
      reviewed rather than of whatever the client holds when they open it later. */

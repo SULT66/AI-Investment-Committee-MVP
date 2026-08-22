@@ -247,7 +247,16 @@ async function callModel(
 }
 
 function marketBlock(m: MarketSnapshot) {
-  return `Broad-market reference: ${m.symbol} (${m.name})
+  /* Named as conditions rather than as a reference, because "Broad-market
+     reference: SPY" was not firm enough - the Devil's Advocate cited "SPY at
+     cycle highs" as though it were a position under discussion. */
+  return `MARKET CONDITIONS - context only, NOT an instrument under discussion.
+${m.symbol} is quoted as a proxy for the broad market so you can see what
+conditions are. It is not a candidate, it is not the subject of this session, and
+you must not argue about whether to hold it or cite it as a position. Reason
+about asset classes.
+
+Broad-market proxy: ${m.symbol} (${m.name})
 Price: ${m.currency} ${fmt(m.currentPrice)} | today ${m.changePercent >= 0 ? "+" : ""}${fmt(m.changePercent)}%
 52-week range: ${fmt(m.fiftyTwoWeekLow)} - ${fmt(m.fiftyTwoWeekHigh)}
 Source: ${m.source}, quote printed ${m.quoteTime ?? "time not reported"}`;
@@ -289,7 +298,14 @@ export async function runBuildJob(
 
     await updateSession(sessionId, {
       status: "READY_TO_PRESENT",
-      marketData: market,
+      /* Deliberately null, as in Review. This carried the benchmark snapshot so
+         the Live Desk header had something to show, and the report builder takes
+         the asset name from exactly that field - so a plan was published as
+         "SPY - SPY", offered "Add SPY to your portfolio", and hid its own
+         allocation behind a single-instrument layout. A plan has no instrument
+         and must not borrow one. */
+      marketData: null,
+      marketContext: market,
       news: [],
       policy: {
         growthAssetCeilingPercent: policy.growthAssetCeilingPercent,
@@ -303,7 +319,7 @@ export async function runBuildJob(
       },
       allocationPolicy: policy
     });
-    await emit(sessionId, "evidence.added", { marketData: market, policy });
+    await emit(sessionId, "evidence.added", { marketContext: market, policy });
 
     const exclusions = input.excludedSectors?.length
       ? `The client excludes: ${input.excludedSectors.join(", ")}. Respect this without arguing about it.`
