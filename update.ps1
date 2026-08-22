@@ -88,6 +88,13 @@ if ($Archive) {
 
     $allowed = @("app", "lib", "components", "public", "docs", "prisma", ".github")
 
+    # Root files an archive may replace. A whitelist, not "anything in the root":
+    # letting an archive drop package.json or .gitignore into the project would
+    # be a way to break the build or smuggle something in, and neither belongs in
+    # a content archive. Everything else at the root is still skipped, which is
+    # what keeps INSTALL.txt out of the repository.
+    $allowedFiles = @("middleware.ts", "next.config.ts", "next-env.d.ts", "tsconfig.json")
+
     # some archives wrap everything in a single folder; step into it
     $roots = @(Get-ChildItem -LiteralPath $staging)
     if ($roots.Count -eq 1 -and $roots[0].PSIsContainer -and ($allowed -notcontains $roots[0].Name)) {
@@ -101,6 +108,11 @@ if ($Archive) {
         $files = @(Get-ChildItem -LiteralPath $item.FullName -Recurse -File)
         $copied = $copied + $files.Count
         Write-Ok "$($item.Name)/ ($($files.Count) file(s))"
+      }
+      elseif (-not $item.PSIsContainer -and ($allowedFiles -contains $item.Name)) {
+        Copy-Item -LiteralPath $item.FullName -Destination "." -Force
+        $copied = $copied + 1
+        Write-Ok "$($item.Name)"
       }
       elseif (-not $item.PSIsContainer) {
         Write-Warn "Skipped loose file '$($item.Name)'"
